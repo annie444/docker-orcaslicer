@@ -1,92 +1,92 @@
 pipeline {
-  agent {
-    label 'X86-64-MULTI'
-  }
-  options {
-    buildDiscarder(logRotator(numToKeepStr: '10', daysToKeepStr: '60'))
-    parallelsAlwaysFailFast()
-  }
-  // Input to determine if this is a package check
-  parameters {
-    string(defaultValue: 'false', description: 'package check run', name: 'PACKAGE_CHECK')
-  }
-  // Configuration for the variables used for this specific repo
-  environment {
-    GITHUB_TOKEN=credentials('a0cdb864-697e-4276-84e9-671949df27f1')
-    GIT_SIGNING_KEY=credentials('07cfd8b3-5a0a-4ff5-a8ad-ac454c86a840')
-    EXT_USER = 'SoftFever'
-    EXT_REPO = 'OrcaSlicer'
-    BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
-    LS_USER = 'annie444'
-    LS_REPO = 'docker-orcaslicer'
-    CONTAINER_NAME = 'orcaslicer'
-    DOCKERHUB_IMAGE = 'annie444/orcaslicer'
-    DIST_IMAGE = 'ubuntu'
-    MULTIARCH = 'false'
-    CI = 'true'
-    CI_WEB = 'true'
-    CI_PORT = '3000'
-    CI_SSL = 'false'
-    CI_DELAY = '120'
-    CI_DOCKERENV = 'TZ=US/Pacific'
-    CI_AUTH = 'user:password'
-    CI_WEBPATH = ''
-  }
-  stages {
-    stage("Set git config"){
-      steps{
-        sh '''#!/bin/bash
-              cat ${GIT_SIGNING_KEY} > /config/.ssh/id_sign
-              chmod 600 /config/.ssh/id_sign
-              ssh-keygen -y -f /config/.ssh/id_sign > /config/.ssh/id_sign.pub
-              echo "Using $(ssh-keygen -lf /config/.ssh/id_sign) to sign commits"
-              git config --global gpg.format ssh
-              git config --global user.signingkey /config/.ssh/id_sign
-              git config --global commit.gpgsign true
-        '''
-      }
+    agent {
+        label 'X86-64-MULTI'
     }
-    // Setup all the basic environment variables needed for the build
-    stage("Set ENV Variables base"){
-      steps{
-        echo "Running on node: ${NODE_NAME}"
-        sh '''#! /bin/bash
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10', daysToKeepStr: '60'))
+        parallelsAlwaysFailFast()
+    }
+    // Input to determine if this is a package check
+    parameters {
+        string(defaultValue: 'false', description: 'package check run', name: 'PACKAGE_CHECK')
+    }
+    // Configuration for the variables used for this specific repo
+    environment {
+        GITHUB_TOKEN = credentials('a0cdb864-697e-4276-84e9-671949df27f1')
+        GIT_SIGNING_KEY = credentials('07cfd8b3-5a0a-4ff5-a8ad-ac454c86a840')
+        EXT_USER = 'SoftFever'
+        EXT_REPO = 'OrcaSlicer'
+        BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
+        LS_USER = 'annie444'
+        LS_REPO = 'docker-orcaslicer'
+        CONTAINER_NAME = 'orcaslicer'
+        DOCKERHUB_IMAGE = 'annie444/orcaslicer'
+        DIST_IMAGE = 'ubuntu'
+        MULTIARCH = 'false'
+        CI = 'true'
+        CI_WEB = 'true'
+        CI_PORT = '3000'
+        CI_SSL = 'false'
+        CI_DELAY = '120'
+        CI_DOCKERENV = 'TZ=US/Pacific'
+        CI_AUTH = 'user:password'
+        CI_WEBPATH = ''
+    }
+    stages {
+        stage('Set git config') {
+            steps {
+                sh '''#!/bin/bash
+                  cat ${GIT_SIGNING_KEY} > /config/.ssh/id_sign
+                  chmod 600 /config/.ssh/id_sign
+                  ssh-keygen -y -f /config/.ssh/id_sign > /config/.ssh/id_sign.pub
+                  echo "Using $(ssh-keygen -lf /config/.ssh/id_sign) to sign commits"
+                  git config --global gpg.format ssh
+                  git config --global user.signingkey /config/.ssh/id_sign
+                  git config --global commit.gpgsign true
+                '''
+            }
+        }
+        // Setup all the basic environment variables needed for the build
+        stage('Set ENV Variables base') {
+            steps {
+                echo "Running on node: ${NODE_NAME}"
+                sh '''#! /bin/bash
               containers=$(docker ps -aq)
               if [[ -n "${containers}" ]]; then
                 docker stop ${containers}
               fi
               docker system prune -af --volumes || : '''
-        script{
-          env.EXIT_STATUS = ''
-          env.LS_RELEASE = sh(
+                script {
+                    env.EXIT_STATUS = ''
+                    env.LS_RELEASE = sh(
             script: '''docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
             returnStdout: true).trim()
-          env.LS_RELEASE_NOTES = sh(
+                    env.LS_RELEASE_NOTES = sh(
             script: '''cat readme-vars.yml | awk -F \\" '/date: "[0-9][0-9].[0-9][0-9].[0-9][0-9]:/ {print $4;exit;}' | sed -E ':a;N;$!ba;s/\\r{0,1}\\n/\\\\n/g' ''',
             returnStdout: true).trim()
-          env.GITHUB_DATE = sh(
+                    env.GITHUB_DATE = sh(
             script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
             returnStdout: true).trim()
-          env.COMMIT_SHA = sh(
+                    env.COMMIT_SHA = sh(
             script: '''git rev-parse HEAD''',
             returnStdout: true).trim()
-          env.GH_DEFAULT_BRANCH = sh(
+                    env.GH_DEFAULT_BRANCH = sh(
             script: '''git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||' ''',
             returnStdout: true).trim()
-          env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
-          env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
-          env.PULL_REQUEST = env.CHANGE_ID
-          env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
-        }
-        sh '''#! /bin/bash
+                    env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
+                    env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
+                    env.PULL_REQUEST = env.CHANGE_ID
+                    env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
+                }
+                sh '''#! /bin/bash
               echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
-        script{
-          env.LS_RELEASE_NUMBER = sh(
+                script {
+                    env.LS_RELEASE_NUMBER = sh(
             script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
             returnStdout: true).trim()
-        }
-        script{
-          env.LS_TAG_NUMBER = sh(
+                }
+                script {
+                    env.LS_TAG_NUMBER = sh(
             script: '''#! /bin/bash
                        tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
                        if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
@@ -97,17 +97,17 @@ pipeline {
                          echo $((${LS_RELEASE_NUMBER} + 1))
                        fi''',
             returnStdout: true).trim()
+                }
+            }
         }
-      }
-    }
     /* #######################
        Package Version Tagging
        ####################### */
-    // Grab the current package versions in Git to determine package tag
-    stage("Set Package tag"){
-      steps{
-        script{
-          env.PACKAGE_TAG = sh(
+        // Grab the current package versions in Git to determine package tag
+        stage('Set Package tag') {
+            steps {
+                script {
+                    env.PACKAGE_TAG = sh(
             script: '''#!/bin/bash
                        if [ -e package_versions.txt ] ; then
                          cat package_versions.txt | md5sum | cut -c1-8
@@ -115,145 +115,144 @@ pipeline {
                          echo none
                        fi''',
             returnStdout: true).trim()
+                }
+            }
         }
-      }
-    }
     /* ########################
        External Release Tagging
        ######################## */
-    // If this is a stable github release use the latest endpoint from github to determine the ext tag
-    stage("Set ENV github_stable"){
-     steps{
-       script{
-         env.EXT_RELEASE = sh(
+        // If this is a stable github release use the latest endpoint from github to determine the ext tag
+        stage('Set ENV github_stable') {
+            steps {
+                script {
+                    env.EXT_RELEASE = sh(
            script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
            returnStdout: true).trim()
-       }
-     }
-    }
-    // If this is a stable or devel github release generate the link for the build message
-    stage("Set ENV github_link"){
-     steps{
-       script{
-         env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
-       }
-     }
-    }
-    // Sanitize the release tag and strip illegal docker or github characters
-    stage("Sanitize tag"){
-      steps{
-        script{
-          env.EXT_RELEASE_CLEAN = sh(
+                }
+            }
+        }
+        // If this is a stable or devel github release generate the link for the build message
+        stage('Set ENV github_link') {
+            steps {
+                script {
+                    env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
+                }
+            }
+        }
+        // Sanitize the release tag and strip illegal docker or github characters
+        stage('Sanitize tag') {
+            steps {
+                script {
+                    env.EXT_RELEASE_CLEAN = sh(
             script: '''echo ${EXT_RELEASE} | sed 's/[~,%@+;:/ ]//g' ''',
             returnStdout: true).trim()
 
-          def semver = env.EXT_RELEASE_CLEAN =~ /(\d+)\.(\d+)\.(\d+)/
-          if (semver.find()) {
-            env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${semver[0][3]}"
+                    def semver = env.EXT_RELEASE_CLEAN =~ /(\d+)\.(\d+)\.(\d+)/
+                    if (semver.find()) {
+                        env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${semver[0][3]}"
           } else {
-            semver = env.EXT_RELEASE_CLEAN =~ /(\d+)\.(\d+)(?:\.(\d+))?(.*)/
-            if (semver.find()) {
-              if (semver[0][3]) {
-                env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${semver[0][3]}"
+                        semver = env.EXT_RELEASE_CLEAN =~ /(\d+)\.(\d+)(?:\.(\d+))?(.*)/
+                        if (semver.find()) {
+                            if (semver[0][3]) {
+                                env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${semver[0][3]}"
               } else if (!semver[0][3] && !semver[0][4]) {
-                env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${(new Date()).format('YYYYMMdd')}"
-              }
-            }
-          }
+                                env.SEMVER = "${semver[0][1]}.${semver[0][2]}.${(new Date()).format('YYYYMMdd')}"
+                            }
+                        }
+                    }
 
-          if (env.SEMVER != null) {
-            if (BRANCH_NAME != "${env.GH_DEFAULT_BRANCH}") {
-              env.SEMVER = "${env.SEMVER}-${BRANCH_NAME}"
+                    if (env.SEMVER != null) {
+                        if (BRANCH_NAME != "${env.GH_DEFAULT_BRANCH}") {
+                            env.SEMVER = "${env.SEMVER}-${BRANCH_NAME}"
+                        }
+                        println("SEMVER: ${env.SEMVER}")
+          } else {
+                        println('No SEMVER detected')
+                    }
+                }
             }
-            println("SEMVER: ${env.SEMVER}")
-          } else {
-            println("No SEMVER detected")
-          }
-
         }
-      }
-    }
-    // If this is a master build use live docker endpoints
-    stage("Set ENV live build"){
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-      }
-      steps {
-        script{
-          env.IMAGE = env.DOCKERHUB_IMAGE
-          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/' + env.CONTAINER_NAME
-          if (env.MULTIARCH == 'true') {
-            env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+        // If this is a master build use live docker endpoints
+        stage('Set ENV live build') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+            }
+            steps {
+                script {
+                    env.IMAGE = env.DOCKERHUB_IMAGE
+                    env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/' + env.CONTAINER_NAME
+                    if (env.MULTIARCH == 'true') {
+                        env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           } else {
-            env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-          }
-          env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-          env.META_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-          env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                        env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+                    }
+                    env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+                    env.META_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+                    env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
+                    env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                }
+            }
         }
-      }
-    }
-    // If this is a dev build use dev docker endpoints
-    stage("Set ENV dev build"){
-      when {
-        not {branch "master"}
-        environment name: 'CHANGE_ID', value: ''
-      }
-      steps {
-        script{
-          env.IMAGE = env.DOCKERHUB_IMAGE
-          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lsiodev-' + env.CONTAINER_NAME
-          if (env.MULTIARCH == 'true') {
-            env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
+        // If this is a dev build use dev docker endpoints
+        stage('Set ENV dev build') {
+            when {
+                not { branch 'master' }
+                environment name: 'CHANGE_ID', value: ''
+            }
+            steps {
+                script {
+                    env.IMAGE = env.DOCKERHUB_IMAGE
+                    env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lsiodev-' + env.CONTAINER_NAME
+                    if (env.MULTIARCH == 'true') {
+                        env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           } else {
-            env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
-          }
-          env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
-          env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
-          env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                        env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
+                    }
+                    env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
+                    env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
+                    env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
+                    env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                }
+            }
         }
-      }
-    }
-    // If this is a pull request build use dev docker endpoints
-    stage("Set ENV PR build"){
-      when {
-        not {environment name: 'CHANGE_ID', value: ''}
-      }
-      steps {
-        script{
-          env.IMAGE = env.DOCKERHUB_IMAGE
-          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lspipepr-' + env.CONTAINER_NAME
-          if (env.MULTIARCH == 'true') {
-            env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
+        // If this is a pull request build use dev docker endpoints
+        stage('Set ENV PR build') {
+            when {
+                not { environment name: 'CHANGE_ID', value: '' }
+            }
+            steps {
+                script {
+                    env.IMAGE = env.DOCKERHUB_IMAGE
+                    env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lspipepr-' + env.CONTAINER_NAME
+                    if (env.MULTIARCH == 'true') {
+                        env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
           } else {
-            env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
-          }
-          env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
-          env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
-          env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/pull/' + env.PULL_REQUEST
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                        env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
+                    }
+                    env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
+                    env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
+                    env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
+                    env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/pull/' + env.PULL_REQUEST
+                    env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+                }
+            }
         }
-      }
-    }
-    // Run ShellCheck
-    stage('ShellCheck') {
-      when {
-        environment name: 'CI', value: 'true'
-      }
-      steps {
-        withCredentials([
+        // Run ShellCheck
+        stage('ShellCheck') {
+            when {
+                environment name: 'CI', value: 'true'
+            }
+            steps {
+                withCredentials([
           string(credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
           string(credentialsId: 'ci-tests-s3-secret-access-key', variable: 'S3_SECRET')
         ]) {
-          script{
-            env.SHELLCHECK_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/shellcheck-result.xml'
-          }
-          sh '''curl -sL https://raw.githubusercontent.com/linuxserver/docker-jenkins-builder/master/checkrun.sh | /bin/bash'''
-          sh '''#! /bin/bash
+                    script {
+                        env.SHELLCHECK_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/shellcheck-result.xml'
+                    }
+                    sh '''curl -sL https://raw.githubusercontent.com/linuxserver/docker-jenkins-builder/master/checkrun.sh | /bin/bash'''
+                    sh '''#! /bin/bash
                 docker run --rm \
                   -v ${WORKSPACE}:/mnt \
                   -e AWS_ACCESS_KEY_ID=\"${S3_KEY}\" \
@@ -265,19 +264,19 @@ pipeline {
                     pip install --no-cache-dir s3cmd && \
                     s3cmd put --no-preserve --acl-public -m text/xml /mnt/shellcheck-result.xml s3://s3.jpeg.gay/${IMAGE}/${META_TAG}/shellcheck-result.xml" || :'''
         }
-      }
-    }
-    // Use helper containers to render templated files
-    stage('Update-Templates') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        expression {
-          env.CONTAINER_NAME != null
+            }
         }
-      }
-      steps {
-        sh '''#! /bin/bash
+        // Use helper containers to render templated files
+        stage('Update-Templates') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                expression {
+                    env.CONTAINER_NAME != null
+                }
+            }
+            steps {
+                sh '''#! /bin/bash
               set -e
               TEMPDIR=$(mktemp -d)
               docker pull ghcr.io/linuxserver/jenkins-builder:latest
@@ -288,7 +287,7 @@ pipeline {
               # ${TEMPDIR}/unraid/docker-templates: Cloned docker-templates repo to check for logos
               # ${TEMPDIR}/unraid/templates: Cloned templates repo for commiting unraid template changes and pushing back to Github
               git clone --branch master --depth 1 https://github.com/${LS_USER}/${LS_REPO}.git ${TEMPDIR}/docker-${CONTAINER_NAME}
-              docker run --rm -v ${TEMPDIR}/docker-${CONTAINER_NAME}:/tmp -e LOCAL=true -e PUID=$(id -u) -e PGID=$(id -g) ghcr.io/linuxserver/jenkins-builder:latest 
+              docker run --rm -v ${TEMPDIR}/docker-${CONTAINER_NAME}:/tmp -e LOCAL=true -e PUID=$(id -u) -e PGID=$(id -g) ghcr.io/linuxserver/jenkins-builder:latest
               echo "Starting Stage 1 - Jenkinsfile update"
               if [[ "$(md5sum Jenkinsfile | awk '{ print $1 }')" != "$(md5sum ${TEMPDIR}/docker-${CONTAINER_NAME}/Jenkinsfile | awk '{ print $1 }')" ]]; then
                 mkdir -p ${TEMPDIR}/repo
@@ -393,39 +392,39 @@ pipeline {
                 echo "No templates to update"
               fi
               rm -Rf ${TEMPDIR}'''
-        script{
-          env.FILES_UPDATED = sh(
+                script {
+                    env.FILES_UPDATED = sh(
             script: '''cat /tmp/${COMMIT_SHA}-${BUILD_NUMBER}''',
             returnStdout: true).trim()
+                }
+            }
         }
-      }
-    }
-    // Exit the build if the Templated files were just updated
-    stage('Template-exit') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'FILES_UPDATED', value: 'true'
-        expression {
-          env.CONTAINER_NAME != null
+        // Exit the build if the Templated files were just updated
+        stage('Template-exit') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'FILES_UPDATED', value: 'true'
+                expression {
+                    env.CONTAINER_NAME != null
+                }
+            }
+            steps {
+                script {
+                    env.EXIT_STATUS = 'ABORTED'
+                }
+            }
         }
-      }
-      steps {
-        script{
-          env.EXIT_STATUS = 'ABORTED'
-        }
-      }
-    }
-    // If this is a master build check the S6 service file perms
-    stage("Check S6 Service file Permissions"){
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        script{
-          sh '''#! /bin/bash
+        // If this is a master build check the S6 service file perms
+        stage('Check S6 Service file Permissions') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                script {
+                    sh '''#! /bin/bash
             WRONG_PERM=$(find ./  -path "./.git" -prune -o \\( -name "run" -o -name "finish" -o -name "check" \\) -not -perm -u=x,g=x,o=x -print)
             if [[ -n "${WRONG_PERM}" ]]; then
               echo "The following S6 service files are missing the executable bit; canceling the faulty build: ${WRONG_PERM}"
@@ -433,24 +432,24 @@ pipeline {
             else
               echo "S6 service file perms look good."
             fi '''
+                }
+            }
         }
-      }
-    }
     /* ###############
        Build Container
        ############### */
-    // Build Docker container for push to LS Repo
-    stage('Build-Single') {
-      when {
-        expression {
-          env.MULTIARCH == 'false' || params.PACKAGE_CHECK == 'true'
-        }
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        echo "Running on node: ${NODE_NAME}"
-        sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile"
-        sh "docker buildx build \
+        // Build Docker container for push to LS Repo
+        stage('Build-Single') {
+            when {
+                expression {
+                    env.MULTIARCH == 'false' || params.PACKAGE_CHECK == 'true'
+                }
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                echo "Running on node: ${NODE_NAME}"
+                sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile"
+                sh "docker buildx build \
           --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
           --label \"org.opencontainers.image.authors=linuxserver.io\" \
           --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
@@ -466,15 +465,15 @@ pipeline {
           --no-cache --pull -t ${IMAGE}:${META_TAG} --platform=linux/amd64 \
           --provenance=false --sbom=false --builder=container --load \
           --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
-        sh '''#! /bin/bash
+                sh '''#! /bin/bash
               set -e
               IFS=',' read -ra CACHE <<< "$BUILDCACHE"
               for i in "${CACHE[@]}"; do
                 docker tag ${IMAGE}:${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
               done
            '''
-        retry_backoff(5,5) {
-            sh '''#! /bin/bash
+                retryBackoff(5, 5) {
+                    sh '''#! /bin/bash
                   set -e
                   echo $GITHUB_TOKEN | docker login ghcr.io -u annie444 --password-stdin
                   if [[ "${PACKAGE_CHECK}" != "true" ]]; then
@@ -485,24 +484,24 @@ pipeline {
                     wait
                   fi
               '''
+                }
+            }
         }
-      }
-    }
-    // Build MultiArch Docker containers for push to LS Repo
-    stage('Build-Multi') {
-      when {
-        allOf {
-          environment name: 'MULTIARCH', value: 'true'
-          expression { params.PACKAGE_CHECK == 'false' }
-        }
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      parallel {
-        stage('Build X86') {
-          steps {
-            echo "Running on node: ${NODE_NAME}"
-            sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile"
-            sh "docker buildx build \
+        // Build MultiArch Docker containers for push to LS Repo
+        stage('Build-Multi') {
+            when {
+                allOf {
+                    environment name: 'MULTIARCH', value: 'true'
+                    expression { params.PACKAGE_CHECK == 'false' }
+                }
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            parallel {
+                stage('Build X86') {
+                    steps {
+                        echo "Running on node: ${NODE_NAME}"
+                        sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile"
+                        sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
               --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
@@ -518,15 +517,15 @@ pipeline {
               --no-cache --pull -t ${IMAGE}:amd64-${META_TAG} --platform=linux/amd64 \
               --provenance=false --sbom=false --builder=container --load \
               --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
-            sh '''#! /bin/bash
+                        sh '''#! /bin/bash
                   set -e
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
                     docker tag ${IMAGE}:amd64-${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
                '''
-            retry_backoff(5,5) {
-                sh '''#! /bin/bash
+                        retryBackoff(5, 5) {
+                            sh '''#! /bin/bash
                       set -e
                       echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
                       if [[ "${PACKAGE_CHECK}" != "true" ]]; then
@@ -537,17 +536,17 @@ pipeline {
                         wait
                       fi
                   '''
-            }
-          }
-        }
-        stage('Build ARM64') {
-          agent {
-            label 'ARM64'
-          }
-          steps {
-            echo "Running on node: ${NODE_NAME}"
-            sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile.aarch64"
-            sh "docker buildx build \
+                        }
+                    }
+                }
+                stage('Build ARM64') {
+                    agent {
+                        label 'ARM64'
+                    }
+                    steps {
+                        echo "Running on node: ${NODE_NAME}"
+                        sh "sed -r -i 's|(^FROM .*)|\\1\\n\\nENV LSIO_FIRST_PARTY=true|g' Dockerfile.aarch64"
+                        sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
               --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
@@ -563,15 +562,15 @@ pipeline {
               --no-cache --pull -f Dockerfile.aarch64 -t ${IMAGE}:arm64v8-${META_TAG} --platform=linux/arm64 \
               --provenance=false --sbom=false --builder=container --load \
               --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
-            sh '''#! /bin/bash
+                        sh '''#! /bin/bash
                   set -e
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
                     docker tag ${IMAGE}:arm64v8-${META_TAG} ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
                '''
-            retry_backoff(5,5) {
-                sh '''#! /bin/bash
+                        retryBackoff(5, 5) {
+                            sh '''#! /bin/bash
                       set -e
                       echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
                       if [[ "${PACKAGE_CHECK}" != "true" ]]; then
@@ -582,27 +581,27 @@ pipeline {
                         wait
                       fi
                   '''
-            }
-            sh '''#! /bin/bash
+                        }
+                        sh '''#! /bin/bash
                   containers=$(docker ps -aq)
                   if [[ -n "${containers}" ]]; then
                     docker stop ${containers}
                   fi
                   docker system prune -af --volumes || :
                '''
-          }
+                    }
+                }
+            }
         }
-      }
-    }
-    // Take the image we just built and dump package versions for comparison
-    stage('Update-packages') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        sh '''#! /bin/bash
+        // Take the image we just built and dump package versions for comparison
+        stage('Update-packages') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                sh '''#! /bin/bash
               set -e
               TEMPDIR=$(mktemp -d)
               if [ "${MULTIARCH}" == "true" ] && [ "${PACKAGE_CHECK}" != "true" ]; then
@@ -635,63 +634,63 @@ pipeline {
                 echo "Package tag is same as previous continue with build process"
               fi
               rm -Rf ${TEMPDIR}'''
-        script{
-          env.PACKAGE_UPDATED = sh(
+                script {
+                    env.PACKAGE_UPDATED = sh(
             script: '''cat /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}''',
             returnStdout: true).trim()
+                }
+            }
         }
-      }
-    }
-    // Exit the build if the package file was just updated
-    stage('PACKAGE-exit') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'PACKAGE_UPDATED', value: 'true'
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        script{
-          env.EXIT_STATUS = 'ABORTED'
+        // Exit the build if the package file was just updated
+        stage('PACKAGE-exit') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'PACKAGE_UPDATED', value: 'true'
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                script {
+                    env.EXIT_STATUS = 'ABORTED'
+                }
+            }
         }
-      }
-    }
-    // Exit the build if this is just a package check and there are no changes to push
-    stage('PACKAGECHECK-exit') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'PACKAGE_UPDATED', value: 'false'
-        environment name: 'EXIT_STATUS', value: ''
-        expression {
-          params.PACKAGE_CHECK == 'true'
+        // Exit the build if this is just a package check and there are no changes to push
+        stage('PACKAGECHECK-exit') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'PACKAGE_UPDATED', value: 'false'
+                environment name: 'EXIT_STATUS', value: ''
+                expression {
+                    params.PACKAGE_CHECK == 'true'
+                }
+            }
+            steps {
+                script {
+                    env.EXIT_STATUS = 'ABORTED'
+                }
+            }
         }
-      }
-      steps {
-        script{
-          env.EXIT_STATUS = 'ABORTED'
-        }
-      }
-    }
     /* #######
        Testing
        ####### */
-    // Run Container tests
-    stage('Test') {
-      when {
-        environment name: 'CI', value: 'true'
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        withCredentials([
-          string(credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
-          string(credentialsId: 'ci-tests-s3-secret-access-key	', variable: 'S3_SECRET')
+        // Run Container tests
+        stage('Test') {
+            when {
+                environment name: 'CI', value: 'true'
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                withCredentials([
+          string( credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
+          string( credentialsId: 'ci-tests-s3-secret-access-key    ', variable: 'S3_SECRET')
         ]) {
-          script{
-            env.CI_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
-            env.CI_JSON_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
-          }
-          sh '''#! /bin/bash
+                    script {
+                        env.CI_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
+                        env.CI_JSON_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
+                    }
+                    sh '''#! /bin/bash
                 set -e
                 if grep -q 'docker-baseimage' <<< "${LS_REPO}"; then
                   echo "Detected baseimage, setting LSIO_FIRST_PARTY=true"
@@ -727,20 +726,20 @@ pipeline {
                 -t ghcr.io/linuxserver/ci:latest \
                 python3 test_build.py'''
         }
-      }
-    }
+            }
+        }
     /* ##################
          Release Logic
        ################## */
-    // If this is an amd64 only image only push a single image
-    stage('Docker-Push-Single') {
-      when {
-        environment name: 'MULTIARCH', value: 'false'
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        retry_backoff(5,5) {
-          sh '''#! /bin/bash
+        // If this is an amd64 only image only push a single image
+        stage('Docker-Push-Single') {
+            when {
+                environment name: 'MULTIARCH', value: 'false'
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                retryBackoff(5, 5) {
+                    sh '''#! /bin/bash
                 set -e
                 for PUSHIMAGE in "${GITHUBIMAGE}"; do
                   [[ ${PUSHIMAGE%%/*} =~ \\. ]] && PUSHIMAGEPLUS="${PUSHIMAGE}" || PUSHIMAGEPLUS="docker.io/${PUSHIMAGE}"
@@ -756,18 +755,18 @@ pipeline {
                   fi
                 done
               '''
+                }
+            }
         }
-      }
-    }
-    // If this is a multi arch release push all images and define the manifest
-    stage('Docker-Push-Multi') {
-      when {
-        environment name: 'MULTIARCH', value: 'true'
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        retry_backoff(5,5) {
-          sh '''#! /bin/bash
+        // If this is a multi arch release push all images and define the manifest
+        stage('Docker-Push-Multi') {
+            when {
+                environment name: 'MULTIARCH', value: 'true'
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                retryBackoff(5, 5) {
+                    sh '''#! /bin/bash
                 set -e
                 for MANIFESTIMAGE in "${GITHUBIMAGE}"; do
                   [[ ${MANIFESTIMAGE%%/*} =~ \\. ]] && MANIFESTIMAGEPLUS="${MANIFESTIMAGE}" || MANIFESTIMAGEPLUS="docker.io/${MANIFESTIMAGE}"
@@ -794,29 +793,29 @@ pipeline {
                   fi
                 done
               '''
+                }
+            }
         }
-      }
-    }
-    // If this is a public release tag it in the LS Github
-    stage('Github-Tag-Push-Release') {
-      when {
-        branch "master"
-        expression {
-          env.LS_RELEASE != env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-        }
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        echo "Pushing New tag for current commit ${META_TAG}"
-        sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/git/tags \
+        // If this is a public release tag it in the LS Github
+        stage('Github-Tag-Push-Release') {
+            when {
+                branch 'master'
+                expression {
+                    env.LS_RELEASE != env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+                }
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                echo "Pushing New tag for current commit ${META_TAG}"
+                sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/git/tags \
         -d '{"tag":"'${META_TAG}'",\
              "object": "'${COMMIT_SHA}'",\
              "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}' to master",\
              "type": "commit",\
              "tagger": {"name": "annie444","email": "annie.ehler.4@gmail.com","date": "'${GITHUB_DATE}'"}}' '''
-        echo "Pushing New release for Tag"
-        sh '''#! /bin/bash
+                echo 'Pushing New release for Tag'
+                sh '''#! /bin/bash
               curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
               echo '{"tag_name":"'${META_TAG}'",\
                      "target_commitish": "master",\
@@ -825,18 +824,18 @@ pipeline {
               printf '","draft": false,"prerelease": false}' >> releasebody.json
               paste -d'\\0' start releasebody.json > releasebody.json.done
               curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/releases -d @releasebody.json.done'''
-      }
-    }
-    // Add protection to the release branch
-    stage('Github-Release-Branch-Protection') {
-      when {
-        branch "master"
-        environment name: 'CHANGE_ID', value: ''
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        echo "Setting up protection for release branch master"
-        sh '''#! /bin/bash
+            }
+        }
+        // Add protection to the release branch
+        stage('Github-Release-Branch-Protection') {
+            when {
+                branch 'master'
+                environment name: 'CHANGE_ID', value: ''
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                echo 'Setting up protection for release branch master'
+                sh '''#! /bin/bash
           curl -H "Authorization: token ${GITHUB_TOKEN}" -X PUT https://api.github.com/repos/${LS_USER}/${LS_REPO}/branches/master/protection \
           -d $(jq -c .  << EOF
             {
@@ -860,16 +859,16 @@ pipeline {
             }
 EOF
           ) '''
-      }
-    }
-    // If this is a Pull request send the CI link as a comment on it
-    stage('Pull Request Comment') {
-      when {
-        not {environment name: 'CHANGE_ID', value: ''}
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps {
-        sh '''#! /bin/bash
+            }
+        }
+        // If this is a Pull request send the CI link as a comment on it
+        stage('Pull Request Comment') {
+            when {
+                not { environment name: 'CHANGE_ID', value: '' }
+                environment name: 'EXIT_STATUS', value: ''
+            }
+            steps {
+                sh '''#! /bin/bash
             # Function to retrieve JSON data from URL
             get_json() {
               local url="$1"
@@ -937,25 +936,24 @@ EOF
                 -d "{\\"body\\": \\"I am a bot, here is the pushed image/manifest for this PR: \\n\\n\\`${GITHUBIMAGE}:${META_TAG}\\`\\"}"
             fi
             '''
-
-      }
+            }
+        }
     }
-  }
   /* ######################
      Send status to Discord
      ###################### */
-  post {
-    always {
-      sh '''#!/bin/bash
+    post {
+        always {
+            sh '''#!/bin/bash
             rm -rf /config/.ssh/id_sign
             rm -rf /config/.ssh/id_sign.pub
             git config --global --unset gpg.format
             git config --global --unset user.signingkey
             git config --global --unset commit.gpgsign
         '''
-    }
-    cleanup {
-      sh '''#! /bin/bash
+        }
+        cleanup {
+            sh '''#! /bin/bash
             echo "Performing docker system prune!!"
             containers=$(docker ps -aq)
             if [[ -n "${containers}" ]]; then
@@ -963,24 +961,24 @@ EOF
             fi
             docker system prune -af --volumes || :
          '''
-      cleanWs()
+            cleanWs()
+        }
     }
-  }
 }
 
-def retry_backoff(int max_attempts, int power_base, Closure c) {
-  int n = 0
-  while (n < max_attempts) {
-    try {
-      c()
-      return
+def retryBackoff(int maxAttempts, int powerBase, Closure c) {
+    int n = 0
+    while (n < maxAttempts) {
+        try {
+            c()
+            return
     } catch (err) {
-      if ((n + 1) >= max_attempts) {
-        throw err
-      }
-      sleep(power_base ** n)
-      n++
+            if ((n + 1) >= maxAttempts) {
+                throw err
+            }
+            sleep(powerBase ** n)
+            n++
+        }
     }
-  }
-  return
+    return
 }
