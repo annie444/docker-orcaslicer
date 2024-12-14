@@ -12,22 +12,15 @@ pipeline {
   }
   // Configuration for the variables used for this specific repo
   environment {
-    BUILDS_DISCORD=credentials('build_webhook_url')
     GITHUB_TOKEN=credentials('498b4638-2d02-4ce5-832d-8a57d01d97ab')
-    GITLAB_TOKEN=credentials('b6f0f1dd-6952-4cf6-95d1-9c06380283f0')
-    GITLAB_NAMESPACE=credentials('gitlab-namespace-id')
-    DOCKERHUB_TOKEN=credentials('docker-hub-ci-pat')
-    QUAYIO_API_TOKEN=credentials('quayio-repo-api-token')
     GIT_SIGNING_KEY=credentials('484fbca6-9a4f-455e-b9e3-97ac98785f5f')
     EXT_USER = 'SoftFever'
     EXT_REPO = 'OrcaSlicer'
     BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
-    LS_USER = 'linuxserver'
+    LS_USER = 'annie444'
     LS_REPO = 'docker-orcaslicer'
     CONTAINER_NAME = 'orcaslicer'
-    DOCKERHUB_IMAGE = 'linuxserver/orcaslicer'
-    DEV_DOCKERHUB_IMAGE = 'lsiodev/orcaslicer'
-    PR_DOCKERHUB_IMAGE = 'lspipepr/orcaslicer'
+    DOCKERHUB_IMAGE = 'annie444/orcaslicer'
     DIST_IMAGE = 'ubuntu'
     MULTIARCH = 'false'
     CI = 'true'
@@ -190,8 +183,6 @@ pipeline {
         script{
           env.IMAGE = env.DOCKERHUB_IMAGE
           env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/' + env.CONTAINER_NAME
-          env.GITLABIMAGE = 'registry.gitlab.com/linuxserver.io/' + env.LS_REPO + '/' + env.CONTAINER_NAME
-          env.QUAYIMAGE = 'quay.io/linuxserver.io/' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           } else {
@@ -200,7 +191,7 @@ pipeline {
           env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.BUILDCACHE = 'docker.io/lsiodev/buildcache,registry.gitlab.com/linuxserver.io/docker-jenkins-builder/lsiodev-buildcache,ghcr.io/linuxserver/lsiodev-buildcache,quay.io/linuxserver.io/lsiodev-buildcache'
+          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
         }
       }
     }
@@ -212,10 +203,8 @@ pipeline {
       }
       steps {
         script{
-          env.IMAGE = env.DEV_DOCKERHUB_IMAGE
+          env.IMAGE = env.DOCKERHUB_IMAGE
           env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lsiodev-' + env.CONTAINER_NAME
-          env.GITLABIMAGE = 'registry.gitlab.com/linuxserver.io/' + env.LS_REPO + '/lsiodev-' + env.CONTAINER_NAME
-          env.QUAYIMAGE = 'quay.io/linuxserver.io/lsiodev-' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           } else {
@@ -224,8 +213,7 @@ pipeline {
           env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DEV_DOCKERHUB_IMAGE + '/tags/'
-          env.BUILDCACHE = 'docker.io/lsiodev/buildcache,registry.gitlab.com/linuxserver.io/docker-jenkins-builder/lsiodev-buildcache,ghcr.io/linuxserver/lsiodev-buildcache,quay.io/linuxserver.io/lsiodev-buildcache'
+          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
         }
       }
     }
@@ -236,10 +224,8 @@ pipeline {
       }
       steps {
         script{
-          env.IMAGE = env.PR_DOCKERHUB_IMAGE
+          env.IMAGE = env.DOCKERHUB_IMAGE
           env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lspipepr-' + env.CONTAINER_NAME
-          env.GITLABIMAGE = 'registry.gitlab.com/linuxserver.io/' + env.LS_REPO + '/lspipepr-' + env.CONTAINER_NAME
-          env.QUAYIMAGE = 'quay.io/linuxserver.io/lspipepr-' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
           } else {
@@ -249,8 +235,7 @@ pipeline {
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
           env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/pull/' + env.PULL_REQUEST
-          env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.PR_DOCKERHUB_IMAGE + '/tags/'
-          env.BUILDCACHE = 'docker.io/lsiodev/buildcache,registry.gitlab.com/linuxserver.io/docker-jenkins-builder/lsiodev-buildcache,ghcr.io/linuxserver/lsiodev-buildcache,quay.io/linuxserver.io/lsiodev-buildcache'
+          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
         }
       }
     }
@@ -265,7 +250,7 @@ pipeline {
           string(credentialsId: 'ci-tests-s3-secret-access-key', variable: 'S3_SECRET')
         ]) {
           script{
-            env.SHELLCHECK_URL = 'https://ci-tests.linuxserver.io/' + env.IMAGE + '/' + env.META_TAG + '/shellcheck-result.xml'
+            env.SHELLCHECK_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/shellcheck-result.xml'
           }
           sh '''curl -sL https://raw.githubusercontent.com/linuxserver/docker-jenkins-builder/master/checkrun.sh | /bin/bash'''
           sh '''#! /bin/bash
@@ -278,7 +263,7 @@ pipeline {
                     python3 -m venv /lsiopy && \
                     pip install --no-cache-dir -U pip && \
                     pip install --no-cache-dir s3cmd && \
-                    s3cmd put --no-preserve --acl-public -m text/xml /mnt/shellcheck-result.xml s3://ci-tests.linuxserver.io/${IMAGE}/${META_TAG}/shellcheck-result.xml" || :'''
+                    s3cmd put --no-preserve --acl-public -m text/xml /mnt/shellcheck-result.xml s3://s3.jpeg.gay/${IMAGE}/${META_TAG}/shellcheck-result.xml" || :'''
         }
       }
     }
@@ -313,8 +298,8 @@ pipeline {
                 cp ${TEMPDIR}/docker-${CONTAINER_NAME}/Jenkinsfile ${TEMPDIR}/repo/${LS_REPO}/
                 git add Jenkinsfile
                 git commit -m 'Bot Updating Templated Files'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
                 echo "true" > /tmp/${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "Updating Jenkinsfile and exiting build, new one will trigger based on commit"
                 rm -Rf ${TEMPDIR}
@@ -338,8 +323,8 @@ pipeline {
                   git rm "${i}"
                 done
                 git commit -m 'Bot Updating Templated Files'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
                 echo "true" > /tmp/${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "Deleting old/deprecated templates and exiting build, new one will trigger based on commit"
                 rm -Rf ${TEMPDIR}
@@ -366,8 +351,8 @@ pipeline {
                 cp ${WORKSPACE}/readme-vars.yml ${TEMPDIR}/repo/${LS_REPO}/readme-vars.yml
                 git add readme-vars.yml
                 git commit -m 'Bot Updating Templated Files'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
                 echo "true" > /tmp/${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "Updating templates and exiting build, new one will trigger based on commit"
                 rm -Rf ${TEMPDIR}
@@ -397,8 +382,8 @@ pipeline {
                 fi
                 git add readme-vars.yml ${TEMPLATED_FILES}
                 git commit -m 'Bot Updating Templated Files'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
                 echo "true" > /tmp/${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "Updating templates and exiting build, new one will trigger based on commit"
                 rm -Rf ${TEMPDIR}
@@ -406,87 +391,6 @@ pipeline {
               else
                 echo "false" > /tmp/${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "No templates to update"
-              fi
-              echo "Starting Stage 4 - External repo updates: Docs, Unraid Template and Readme Sync to Docker Hub"
-              mkdir -p ${TEMPDIR}/docs
-              git clone --depth=1 https://github.com/linuxserver/docker-documentation.git ${TEMPDIR}/docs/docker-documentation
-              if [[ "${BRANCH_NAME}" == "${GH_DEFAULT_BRANCH}"  ]] && [[ (! -f ${TEMPDIR}/docs/docker-documentation/docs/images/docker-${CONTAINER_NAME}.md) || ("$(md5sum ${TEMPDIR}/docs/docker-documentation/docs/images/docker-${CONTAINER_NAME}.md | awk '{ print $1 }')" != "$(md5sum ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/docker-${CONTAINER_NAME}.md | awk '{ print $1 }')") ]]; then
-                cp ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/docker-${CONTAINER_NAME}.md ${TEMPDIR}/docs/docker-documentation/docs/images/
-                cd ${TEMPDIR}/docs/docker-documentation
-                GH_DOCS_DEFAULT_BRANCH=$(git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||')
-                git add docs/images/docker-${CONTAINER_NAME}.md
-                echo "Updating docs repo"
-                git commit -m 'Bot Updating Documentation'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/docker-documentation.git ${GH_DOCS_DEFAULT_BRANCH} --rebase
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/docker-documentation.git ${GH_DOCS_DEFAULT_BRANCH} || \
-                  (MAXWAIT="10" && echo "Push to docs failed, trying again in ${MAXWAIT} seconds" && \
-                  sleep $((RANDOM % MAXWAIT)) && \
-                  git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/docker-documentation.git ${GH_DOCS_DEFAULT_BRANCH} --rebase && \
-                  git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/docker-documentation.git ${GH_DOCS_DEFAULT_BRANCH})
-              else
-                echo "Docs update not needed, skipping"
-              fi
-              mkdir -p ${TEMPDIR}/unraid
-              git clone --depth=1 https://github.com/linuxserver/docker-templates.git ${TEMPDIR}/unraid/docker-templates
-              git clone --depth=1 https://github.com/linuxserver/templates.git ${TEMPDIR}/unraid/templates
-              if [[ -f ${TEMPDIR}/unraid/docker-templates/linuxserver.io/img/${CONTAINER_NAME}-logo.png ]]; then
-                sed -i "s|master/linuxserver.io/img/linuxserver-ls-logo.png|master/linuxserver.io/img/${CONTAINER_NAME}-logo.png|" ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/${CONTAINER_NAME}.xml
-              elif [[ -f ${TEMPDIR}/unraid/docker-templates/linuxserver.io/img/${CONTAINER_NAME}-icon.png ]]; then
-                sed -i "s|master/linuxserver.io/img/linuxserver-ls-logo.png|master/linuxserver.io/img/${CONTAINER_NAME}-icon.png|" ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/${CONTAINER_NAME}.xml
-              fi
-              if [[ "${BRANCH_NAME}" == "${GH_DEFAULT_BRANCH}" ]] && [[ (! -f ${TEMPDIR}/unraid/templates/unraid/${CONTAINER_NAME}.xml) || ("$(md5sum ${TEMPDIR}/unraid/templates/unraid/${CONTAINER_NAME}.xml | awk '{ print $1 }')" != "$(md5sum ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/${CONTAINER_NAME}.xml | awk '{ print $1 }')") ]]; then
-                echo "Updating Unraid template"
-                cd ${TEMPDIR}/unraid/templates/
-                GH_TEMPLATES_DEFAULT_BRANCH=$(git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||')
-                if grep -wq "^${CONTAINER_NAME}$" ${TEMPDIR}/unraid/templates/unraid/ignore.list && [[ -f ${TEMPDIR}/unraid/templates/unraid/deprecated/${CONTAINER_NAME}.xml ]]; then
-                  echo "Image is on the ignore list, and already in the deprecation folder."
-                elif grep -wq "^${CONTAINER_NAME}$" ${TEMPDIR}/unraid/templates/unraid/ignore.list; then
-                  echo "Image is on the ignore list, marking Unraid template as deprecated"
-                  cp ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/${CONTAINER_NAME}.xml ${TEMPDIR}/unraid/templates/unraid/
-                  git add -u unraid/${CONTAINER_NAME}.xml
-                  git mv unraid/${CONTAINER_NAME}.xml unraid/deprecated/${CONTAINER_NAME}.xml || :
-                  git commit -m 'Bot Moving Deprecated Unraid Template' || :
-                else
-                  cp ${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/${CONTAINER_NAME}.xml ${TEMPDIR}/unraid/templates/unraid/
-                  git add unraid/${CONTAINER_NAME}.xml
-                  git commit -m 'Bot Updating Unraid Template'
-                fi
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/templates.git ${GH_TEMPLATES_DEFAULT_BRANCH} --rebase
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/templates.git ${GH_TEMPLATES_DEFAULT_BRANCH} || \
-                  (MAXWAIT="10" && echo "Push to unraid templates failed, trying again in ${MAXWAIT} seconds" && \
-                  sleep $((RANDOM % MAXWAIT)) && \
-                  git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/templates.git ${GH_TEMPLATES_DEFAULT_BRANCH} --rebase && \
-                  git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/linuxserver/templates.git ${GH_TEMPLATES_DEFAULT_BRANCH})
-              else
-                echo "No updates to Unraid template needed, skipping"
-              fi
-              if [[ "${BRANCH_NAME}" == "${GH_DEFAULT_BRANCH}" ]]; then
-                if [[ $(cat ${TEMPDIR}/docker-${CONTAINER_NAME}/README.md | wc -m) -gt 25000 ]]; then
-                  echo "Readme is longer than 25,000 characters. Syncing the lite version to Docker Hub"
-                  DH_README_SYNC_PATH="${TEMPDIR}/docker-${CONTAINER_NAME}/.jenkins-external/README.lite"
-                else
-                  echo "Syncing readme to Docker Hub"
-                  DH_README_SYNC_PATH="${TEMPDIR}/docker-${CONTAINER_NAME}/README.md"
-                fi
-                if curl -s https://hub.docker.com/v2/namespaces/${DOCKERHUB_IMAGE%%/*}/repositories/${DOCKERHUB_IMAGE##*/}/tags | jq -r '.message' | grep -q 404; then
-                  echo "Docker Hub endpoint doesn't exist. Creating endpoint first."
-                  DH_TOKEN=$(curl -d '{"username":"linuxserverci", "password":"'${DOCKERHUB_TOKEN}'"}' -H "Content-Type: application/json" -X POST https://hub.docker.com/v2/users/login | jq -r '.token')
-                  curl -s \
-                    -H "Authorization: JWT ${DH_TOKEN}" \
-                    -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"name":"'${DOCKERHUB_IMAGE##*/}'", "namespace":"'${DOCKERHUB_IMAGE%%/*}'"}' \
-                    https://hub.docker.com/v2/repositories/ || :
-                fi
-                DH_TOKEN=$(curl -d '{"username":"linuxserverci", "password":"'${DOCKERHUB_TOKEN}'"}' -H "Content-Type: application/json" -X POST https://hub.docker.com/v2/users/login | jq -r '.token')
-                curl -s \
-                  -H "Authorization: JWT ${DH_TOKEN}" \
-                  -H "Content-Type: application/json" \
-                  -X PATCH \
-                  -d "{\\"full_description\\":$(jq -Rsa . ${DH_README_SYNC_PATH})}" \
-                  https://hub.docker.com/v2/repositories/${DOCKERHUB_IMAGE} || :
-              else
-                echo "Not the default Github branch. Skipping readme sync to Docker Hub."
               fi
               rm -Rf ${TEMPDIR}'''
         script{
@@ -532,30 +436,6 @@ pipeline {
         }
       }
     }
-    /* #######################
-       GitLab Mirroring and Quay.io Repo Visibility
-       ####################### */
-    // Ping into Gitlab to mirror this repo and have a registry endpoint & mark this repo on Quay.io as public
-    stage("GitLab Mirror and Quay.io Visibility"){
-      when {
-        environment name: 'EXIT_STATUS', value: ''
-      }
-      steps{
-        sh '''curl -H "Content-Type: application/json" -H "Private-Token: ${GITLAB_TOKEN}" -X POST https://gitlab.com/api/v4/projects \
-          -d '{"namespace_id":'${GITLAB_NAMESPACE}',\
-            "name":"'${LS_REPO}'",
-            "mirror":true,\
-            "import_url":"https://github.com/linuxserver/'${LS_REPO}'.git",\
-            "issues_access_level":"disabled",\
-            "merge_requests_access_level":"disabled",\
-            "repository_access_level":"enabled",\
-            "visibility":"public"}' '''
-        sh '''curl -H "Private-Token: ${GITLAB_TOKEN}" -X PUT "https://gitlab.com/api/v4/projects/Linuxserver.io%2F${LS_REPO}" \
-          -d "mirror=true&import_url=https://github.com/linuxserver/${LS_REPO}.git" '''
-        sh '''curl -H "Content-Type: application/json" -H "Authorization: Bearer ${QUAYIO_API_TOKEN}" -X POST "https://quay.io/api/v1/repository${QUAYIMAGE/quay.io/}/changevisibility" \
-          -d '{"visibility":"public"}' ||: '''
-      } 
-    }
     /* ###############
        Build Container
        ############### */
@@ -573,12 +453,12 @@ pipeline {
         sh "docker buildx build \
           --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
           --label \"org.opencontainers.image.authors=linuxserver.io\" \
-          --label \"org.opencontainers.image.url=https://github.com/linuxserver/docker-orcaslicer/packages\" \
-          --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/docker-orcaslicer\" \
-          --label \"org.opencontainers.image.source=https://github.com/linuxserver/docker-orcaslicer\" \
+          --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
+          --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
+          --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
           --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
           --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-          --label \"org.opencontainers.image.vendor=linuxserver.io\" \
+          --label \"org.opencontainers.image.vendor=annie444\" \
           --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
           --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
           --label \"org.opencontainers.image.title=Orcaslicer\" \
@@ -593,30 +473,18 @@ pipeline {
                 docker tag ${IMAGE}:${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
               done
            '''
-        withCredentials([
-          [
-            $class: 'UsernamePasswordMultiBinding',
-            credentialsId: 'Quay.io-Robot',
-            usernameVariable: 'QUAYUSER',
-            passwordVariable: 'QUAYPASS'
-          ]
-        ]) {
-          retry_backoff(5,5) {
-              sh '''#! /bin/bash
-                    set -e
-                    echo $DOCKERHUB_TOKEN | docker login -u linuxserverci --password-stdin
-                    echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
-                    echo $GITLAB_TOKEN | docker login registry.gitlab.com -u LinuxServer.io --password-stdin
-                    echo $QUAYPASS | docker login quay.io -u $QUAYUSER --password-stdin
-                    if [[ "${PACKAGE_CHECK}" != "true" ]]; then
-                      IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-                      for i in "${CACHE[@]}"; do
-                        docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
-                      done
-                      wait
-                    fi
-                '''
-          }
+        retry_backoff(5,5) {
+            sh '''#! /bin/bash
+                  set -e
+                  echo $GITHUB_TOKEN | docker login ghcr.io -u annie444 --password-stdin
+                  if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                    IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                    for i in "${CACHE[@]}"; do
+                      docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                    done
+                    wait
+                  fi
+              '''
         }
       }
     }
@@ -637,12 +505,12 @@ pipeline {
             sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
-              --label \"org.opencontainers.image.url=https://github.com/linuxserver/docker-orcaslicer/packages\" \
-              --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/docker-orcaslicer\" \
-              --label \"org.opencontainers.image.source=https://github.com/linuxserver/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
+              --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
               --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
               --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.vendor=linuxserver.io\" \
+              --label \"org.opencontainers.image.vendor=annie444\" \
               --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
               --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
               --label \"org.opencontainers.image.title=Orcaslicer\" \
@@ -657,30 +525,18 @@ pipeline {
                     docker tag ${IMAGE}:amd64-${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
                '''
-            withCredentials([
-              [
-                $class: 'UsernamePasswordMultiBinding',
-                credentialsId: 'Quay.io-Robot',
-                usernameVariable: 'QUAYUSER',
-                passwordVariable: 'QUAYPASS'
-              ]
-            ]) {
-              retry_backoff(5,5) {
-                  sh '''#! /bin/bash
-                        set -e
-                        echo $DOCKERHUB_TOKEN | docker login -u linuxserverci --password-stdin
-                        echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
-                        echo $GITLAB_TOKEN | docker login registry.gitlab.com -u LinuxServer.io --password-stdin
-                        echo $QUAYPASS | docker login quay.io -u $QUAYUSER --password-stdin
-                        if [[ "${PACKAGE_CHECK}" != "true" ]]; then
-                          IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-                          for i in "${CACHE[@]}"; do
-                            docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
-                          done
-                          wait
-                        fi
-                    '''
-              }
+            retry_backoff(5,5) {
+                sh '''#! /bin/bash
+                      set -e
+                      echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
+                      if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                        IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                        for i in "${CACHE[@]}"; do
+                          docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                        done
+                        wait
+                      fi
+                  '''
             }
           }
         }
@@ -694,12 +550,12 @@ pipeline {
             sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
-              --label \"org.opencontainers.image.url=https://github.com/linuxserver/docker-orcaslicer/packages\" \
-              --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/docker-orcaslicer\" \
-              --label \"org.opencontainers.image.source=https://github.com/linuxserver/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
+              --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
               --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
               --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.vendor=linuxserver.io\" \
+              --label \"org.opencontainers.image.vendor=annie444\" \
               --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
               --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
               --label \"org.opencontainers.image.title=Orcaslicer\" \
@@ -714,30 +570,18 @@ pipeline {
                     docker tag ${IMAGE}:arm64v8-${META_TAG} ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
                '''
-            withCredentials([
-              [
-                $class: 'UsernamePasswordMultiBinding',
-                credentialsId: 'Quay.io-Robot',
-                usernameVariable: 'QUAYUSER',
-                passwordVariable: 'QUAYPASS'
-              ]
-            ]) {
-              retry_backoff(5,5) {
-                  sh '''#! /bin/bash
-                        set -e
-                        echo $DOCKERHUB_TOKEN | docker login -u linuxserverci --password-stdin
-                        echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
-                        echo $GITLAB_TOKEN | docker login registry.gitlab.com -u LinuxServer.io --password-stdin
-                        echo $QUAYPASS | docker login quay.io -u $QUAYUSER --password-stdin
-                        if [[ "${PACKAGE_CHECK}" != "true" ]]; then
-                          IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-                          for i in "${CACHE[@]}"; do
-                            docker push ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} &
-                          done
-                          wait
-                        fi
-                    '''
-              }
+            retry_backoff(5,5) {
+                sh '''#! /bin/bash
+                      set -e
+                      echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
+                      if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                        IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                        for i in "${CACHE[@]}"; do
+                          docker push ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} &
+                        done
+                        wait
+                      fi
+                  '''
             }
             sh '''#! /bin/bash
                   containers=$(docker ps -aq)
@@ -782,8 +626,8 @@ pipeline {
                 wait
                 git add package_versions.txt
                 git commit -m 'Bot Updating Package Versions'
-                git pull https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-                git push https://LinuxServer-CI:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
                 echo "true" > /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}
                 echo "Package tag updated, stopping build process"
               else
@@ -844,8 +688,8 @@ pipeline {
           string(credentialsId: 'ci-tests-s3-secret-access-key	', variable: 'S3_SECRET')
         ]) {
           script{
-            env.CI_URL = 'https://ci-tests.linuxserver.io/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
-            env.CI_JSON_URL = 'https://ci-tests.linuxserver.io/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
+            env.CI_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
+            env.CI_JSON_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
           }
           sh '''#! /bin/bash
                 set -e
@@ -859,8 +703,8 @@ pipeline {
                 fi
                 docker pull ghcr.io/linuxserver/ci:latest
                 if [ "${MULTIARCH}" == "true" ]; then
-                  docker pull ghcr.io/linuxserver/lsiodev-buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} --platform=arm64
-                  docker tag ghcr.io/linuxserver/lsiodev-buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${META_TAG}
+                  docker pull ghcr.io/annie444/buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} --platform=arm64
+                  docker tag ghcr.io/annie444/buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${META_TAG}
                 fi
                 docker run --rm \
                 --shm-size=1gb \
@@ -898,7 +742,7 @@ pipeline {
         retry_backoff(5,5) {
           sh '''#! /bin/bash
                 set -e
-                for PUSHIMAGE in "${IMAGE}" "${GITLABIMAGE}" "${GITHUBIMAGE}" "${QUAYIMAGE}"; do
+                for PUSHIMAGE in "${GITHUBIMAGE}"; do
                   [[ ${PUSHIMAGE%%/*} =~ \\. ]] && PUSHIMAGEPLUS="${PUSHIMAGE}" || PUSHIMAGEPLUS="docker.io/${PUSHIMAGE}"
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
@@ -925,7 +769,7 @@ pipeline {
         retry_backoff(5,5) {
           sh '''#! /bin/bash
                 set -e
-                for MANIFESTIMAGE in "${IMAGE}" "${GITLABIMAGE}" "${GITHUBIMAGE}" "${QUAYIMAGE}"; do
+                for MANIFESTIMAGE in "${GITHUBIMAGE}"; do
                   [[ ${MANIFESTIMAGE%%/*} =~ \\. ]] && MANIFESTIMAGEPLUS="${MANIFESTIMAGE}" || MANIFESTIMAGEPLUS="docker.io/${MANIFESTIMAGE}"
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
@@ -970,7 +814,7 @@ pipeline {
              "object": "'${COMMIT_SHA}'",\
              "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}' to master",\
              "type": "commit",\
-             "tagger": {"name": "LinuxServer-CI","email": "ci@linuxserver.io","date": "'${GITHUB_DATE}'"}}' '''
+             "tagger": {"name": "annie444","email": "annie.ehler.4@gmail.com","date": "'${GITHUB_DATE}'"}}' '''
         echo "Pushing New release for Tag"
         sh '''#! /bin/bash
               curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
@@ -1109,49 +953,6 @@ EOF
             git config --global --unset user.signingkey
             git config --global --unset commit.gpgsign
         '''
-      script{
-        env.JOB_DATE = sh(
-            script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
-            returnStdout: true).trim()
-        if (env.EXIT_STATUS == "ABORTED"){
-          sh 'echo "build aborted"'
-        }else{
-          if (currentBuild.currentResult == "SUCCESS"){
-            if (env.GITHUBIMAGE =~ /lspipepr/){
-              env.JOB_WEBHOOK_STATUS='Success'
-              env.JOB_WEBHOOK_COLOUR=3957028
-              env.JOB_WEBHOOK_FOOTER='PR Build'
-            }else if (env.GITHUBIMAGE =~ /lsiodev/){
-              env.JOB_WEBHOOK_STATUS='Success'
-              env.JOB_WEBHOOK_COLOUR=3957028
-              env.JOB_WEBHOOK_FOOTER='Dev Build'
-            }else{
-              env.JOB_WEBHOOK_STATUS='Success'
-              env.JOB_WEBHOOK_COLOUR=1681177
-              env.JOB_WEBHOOK_FOOTER='Live Build'
-            }
-          }else{
-            if (env.GITHUBIMAGE =~ /lspipepr/){
-              env.JOB_WEBHOOK_STATUS='Failure'
-              env.JOB_WEBHOOK_COLOUR=12669523
-              env.JOB_WEBHOOK_FOOTER='PR Build'
-            }else if (env.GITHUBIMAGE =~ /lsiodev/){
-              env.JOB_WEBHOOK_STATUS='Failure'
-              env.JOB_WEBHOOK_COLOUR=12669523
-              env.JOB_WEBHOOK_FOOTER='Dev Build'
-            }else{
-              env.JOB_WEBHOOK_STATUS='Failure'
-              env.JOB_WEBHOOK_COLOUR=16711680
-              env.JOB_WEBHOOK_FOOTER='Live Build'
-            }
-          }
-          sh ''' curl -X POST -H "Content-Type: application/json" --data '{"avatar_url": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/jenkins-avatar.png","embeds": [{"'color'": '${JOB_WEBHOOK_COLOUR}',\
-                 "footer": {"text" : "'"${JOB_WEBHOOK_FOOTER}"'"},\
-                 "timestamp": "'${JOB_DATE}'",\
-                 "description": "**Build:**  '${BUILD_NUMBER}'\\n**CI Results:**  '${CI_URL}'\\n**ShellCheck Results:**  '${SHELLCHECK_URL}'\\n**Status:**  '${JOB_WEBHOOK_STATUS}'\\n**Job:** '${RUN_DISPLAY_URL}'\\n**Change:** '${CODE_URL}'\\n**External Release:**: '${RELEASE_LINK}'\\n**DockerHub:** '${DOCKERHUB_LINK}'\\n"}],\
-                 "username": "Jenkins"}' ${BUILDS_DISCORD} '''
-        }
-      }
     }
     cleanup {
       sh '''#! /bin/bash

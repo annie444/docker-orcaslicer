@@ -1,0 +1,16 @@
+{
+    "brim_type": "auto_brim",
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.12mm Fine @Flashforge AD5M Pro 0.4 Nozzle",
+    "is_custom_defined": "0",
+    "name": "0.12mm Fine w Manual Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "precise_outer_wall": "1",
+    "print_settings_id": "0.12mm Fine w Manual Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "sparse_infill_pattern": "adaptivecubic",
+    "support_on_build_plate_only": "1",
+    "support_threshold_angle": "60",
+    "support_type": "tree(manual)",
+    "version": "2.2.0.4",
+    "wall_loops": "3"
+}

@@ -1,0 +1,13 @@
+{
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.12mm Fine @Flashforge AD5M Pro 0.4 Nozzle",
+    "is_custom_defined": "0",
+    "name": "0.12mm Fine w Precise Walls and Min Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "precise_outer_wall": "1",
+    "precise_z_height": "1",
+    "print_settings_id": "0.12mm Fine w Precise Walls and Min Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "support_threshold_angle": "20",
+    "support_type": "tree(auto)",
+    "version": "2.2.0.4"
+}

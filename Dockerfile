@@ -61,6 +61,7 @@ RUN \
 
 # add local files
 COPY /root /
+COPY /OrcaSlicer /home/kasm-user/.config/OrcaSlicer
 
 # ports and volumes
 EXPOSE 3000

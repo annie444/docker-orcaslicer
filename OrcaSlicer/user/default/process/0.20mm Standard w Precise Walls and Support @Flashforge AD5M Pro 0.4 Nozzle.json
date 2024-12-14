@@ -1,0 +1,15 @@
+{
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.20mm Standard @Flashforge AD5M Pro 0.4 Nozzle",
+    "is_custom_defined": "0",
+    "name": "0.20mm Standard w Precise Walls and Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "precise_outer_wall": "1",
+    "precise_z_height": "1",
+    "print_settings_id": "0.20mm Standard w Precise Walls and Support @Flashforge AD5M Pro 0.4 Nozzle",
+    "support_on_build_plate_only": "1",
+    "support_remove_small_overhang": "0",
+    "support_threshold_angle": "20",
+    "support_type": "tree(auto)",
+    "version": "2.2.0.4"
+}
