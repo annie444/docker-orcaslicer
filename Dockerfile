@@ -48,6 +48,7 @@ RUN \
     /tmp/orca.app -L \
     "https://github.com/SoftFever/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_$(echo ${ORCASLICER_VERSION} | sed 's/\b\(.\)/\u\1/g').AppImage" && \
   chmod +x /tmp/orca.app && \
+  cd /tmp && \
   ./orca.app --appimage-extract && \
   mv squashfs-root /opt/orcaslicer && \
   echo "**** cleanup ****" && \
