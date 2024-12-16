@@ -47,8 +47,8 @@ pipeline {
     GH_DEFAULT_BRANCH = sh(
       script: '''git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||' ''',
       returnStdout: true).trim()
-    CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
-    DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
+    CODE_URL = 'https://github.com/$LS_USER/$LS_REPO/commit/$GIT_COMMIT'
+    DOCKERHUB_LINK = 'https://hub.docker.com/r/$DOCKERHUB_IMAGE/tags/'
     PULL_REQUEST = env.CHANGE_ID
     TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
     EXT_RELEASE = sh(
@@ -77,7 +77,7 @@ pipeline {
           echo none
         fi''',
       returnStdout: true).trim()
-    RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
+    RELEASE_LINK = 'https://github.com/$EXT_USER/$EXT_REPO/releases/tag/$EXT_RELEASE'
   }
   stages {
     stage('Set git config') {
