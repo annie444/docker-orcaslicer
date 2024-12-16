@@ -31,6 +31,53 @@ pipeline {
     CI_DOCKERENV = 'TZ=US/Pacific'
     CI_AUTH = 'user:password'
     CI_WEBPATH = ''
+    EXIT_STATUS = ''
+    LS_RELEASE = sh(
+      script: '''docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
+      returnStdout: true).trim()
+    LS_RELEASE_NOTES = sh(
+      script: '''cat readme-vars.yml | awk -F \\" '/date: "[0-9][0-9].[0-9][0-9].[0-9][0-9]:/ {print $4;exit;}' | sed -E ':a;N;$!ba;s/\\r{0,1}\\n/\\\\n/g' ''',
+      returnStdout: true).trim()
+    GITHUB_DATE = sh(
+      script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
+      returnStdout: true).trim()
+    COMMIT_SHA = sh(
+      script: '''git rev-parse HEAD''',
+      returnStdout: true).trim()
+    GH_DEFAULT_BRANCH = sh(
+      script: '''git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||' ''',
+      returnStdout: true).trim()
+    CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
+    DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
+    PULL_REQUEST = env.CHANGE_ID
+    TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
+    EXT_RELEASE = sh(
+      script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
+      returnStdout: true
+    ).trim()
+    LS_RELEASE_NUMBER = sh(
+      script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
+      returnStdout: true).trim()
+    LS_TAG_NUMBER = sh(
+      script: '''#! /bin/bash
+        tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
+        if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
+          echo ${LS_RELEASE_NUMBER}
+        elif [ -z "${GIT_COMMIT}" ]; then
+          echo ${LS_RELEASE_NUMBER}
+        else
+          echo $((${LS_RELEASE_NUMBER} + 1))
+        fi''',
+      returnStdout: true).trim()
+    PACKAGE_TAG = sh(
+      script: '''#!/bin/bash
+        if [ -e package_versions.txt ] ; then
+          cat package_versions.txt | md5sum | cut -c1-8
+        else
+          echo none
+        fi''',
+      returnStdout: true).trim()
+    RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
   }
   stages {
     stage('Set git config') {
@@ -54,91 +101,24 @@ pipeline {
             docker stop ${containers}
           fi
           docker system prune -af --volumes || : '''
-        script {
-          env.EXIT_STATUS = ''
-          env.LS_RELEASE = sh(
-            script: '''docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
-            returnStdout: true).trim()
-          env.LS_RELEASE_NOTES = sh(
-            script: '''cat readme-vars.yml | awk -F \\" '/date: "[0-9][0-9].[0-9][0-9].[0-9][0-9]:/ {print $4;exit;}' | sed -E ':a;N;$!ba;s/\\r{0,1}\\n/\\\\n/g' ''',
-            returnStdout: true).trim()
-          env.GITHUB_DATE = sh(
-            script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
-            returnStdout: true).trim()
-          env.COMMIT_SHA = sh(
-            script: '''git rev-parse HEAD''',
-            returnStdout: true).trim()
-          env.GH_DEFAULT_BRANCH = sh(
-            script: '''git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||' ''',
-            returnStdout: true).trim()
-          env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
-          env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
-          env.PULL_REQUEST = env.CHANGE_ID
-          env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
-        }
         sh '''#! /bin/bash
           echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
-        script {
-          env.LS_RELEASE_NUMBER = sh(
-            script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
-            returnStdout: true).trim()
-        }
-        script {
-          env.LS_TAG_NUMBER = sh(
-            script: '''#! /bin/bash
-              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
-              if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
-                echo ${LS_RELEASE_NUMBER}
-              elif [ -z "${GIT_COMMIT}" ]; then
-                echo ${LS_RELEASE_NUMBER}
-              else
-                echo $((${LS_RELEASE_NUMBER} + 1))
-              fi''',
-            returnStdout: true).trim()
-        }
-      }
-    }
-    /* #######################
-    Package Version Tagging
-    ####################### */
-    // Grab the current package versions in Git to determine package tag
-    stage('Set Package tag') {
-      steps {
-        script {
-          env.PACKAGE_TAG = sh(
-            script: '''#!/bin/bash
-              if [ -e package_versions.txt ] ; then
-                cat package_versions.txt | md5sum | cut -c1-8
-              else
-                echo none
-              fi''',
-            returnStdout: true).trim()
-        }
-      }
-    }
-    /* ########################
-    External Release Tagging
-    ######################## */
-    // If this is a stable github release use the latest endpoint from github to determine the ext tag
-    stage('Set ENV github_stable') {
-      steps {
-        script {
-          env.EXT_RELEASE = sh(
-            script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
-            returnStdout: true).trim()
-        }
       }
     }
     // If this is a stable or devel github release generate the link for the build message
     stage('Set ENV github_link') {
       steps {
         script {
-          env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
+          
         }
       }
     }
     // Sanitize the release tag and strip illegal docker or github characters
     stage('Sanitize tag') {
+      environment {
+        
+        SEMVER = ''
+      }
       steps {
         script {
           env.EXT_RELEASE_CLEAN = sh(
