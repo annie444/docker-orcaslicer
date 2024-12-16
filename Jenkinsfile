@@ -49,7 +49,7 @@ pipeline {
       returnStdout: true).trim()
     CODE_URL = 'https://github.com/$LS_USER/$LS_REPO/commit/$GIT_COMMIT'
     DOCKERHUB_LINK = 'https://hub.docker.com/r/$DOCKERHUB_IMAGE/tags/'
-    PULL_REQUEST = env.CHANGE_ID
+    PULL_REQUEST = '$CHANGE_ID'
     TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
     EXT_RELEASE = sh(
       script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
@@ -105,18 +105,9 @@ pipeline {
           echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
       }
     }
-    // If this is a stable or devel github release generate the link for the build message
-    stage('Set ENV github_link') {
-      steps {
-        script {
-          
-        }
-      }
-    }
     // Sanitize the release tag and strip illegal docker or github characters
     stage('Sanitize tag') {
       environment {
-        
         SEMVER = ''
       }
       steps {
