@@ -13,7 +13,7 @@ pipeline {
   // Configuration for the variables used for this specific repo
   environment {
     GITHUB_TOKEN = credentials('a0cdb864-697e-4276-84e9-671949df27f1')
-    GIT_SIGNING_KEY = credentials('07cfd8b3-5a0a-4ff5-a8ad-ac454c86a840')
+    GIT_SIGNING_KEY = credentials('e7828431-1ae4-4165-b943-4a0aa5ef0eca')
     EXT_USER = 'SoftFever'
     EXT_REPO = 'OrcaSlicer'
     BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
