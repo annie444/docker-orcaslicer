@@ -52,7 +52,7 @@ pipeline {
         echo "Running on node: ${NODE_NAME}"
         script {
           env.LS_RELEASE = sh(
-            script: "docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ",
+            script: '''docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
             returnStdout: true).trim()
           env.LS_RELEASE_NOTES = sh(
             script: '''cat readme-vars.yml | awk -F \\" '/date: "[0-9][0-9].[0-9][0-9].[0-9][0-9]:/ {print $4;exit;}' | sed -E ':a;N;$!ba;s/\\r{0,1}\\n/\\\\n/g' ''',
@@ -71,30 +71,30 @@ pipeline {
           env.PULL_REQUEST = env.CHANGE_ID
           env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
           env.EXT_RELEASE = sh(
-            script: "curl -H \"Authorization: token ${GITHUB_TOKEN}\" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ",
+            script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
             returnStdout: true
           ).trim()
           env.LS_RELEASE_NUMBER = sh(
-            script: "echo ${LS_RELEASE} |sed 's/^.*-ls//g' ",
+            script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
             returnStdout: true).trim()
           env.LS_TAG_NUMBER = sh(
-            script: "! /bin/bash \
-              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null) \
-              if [ \"${tagsha}\" == \"${COMMIT_SHA}\" ]; then \
-                echo ${LS_RELEASE_NUMBER} \
-              elif [ -z \"${GIT_COMMIT}\" ]; then \
-                echo ${LS_RELEASE_NUMBER} \
-              else \
-                echo $((${LS_RELEASE_NUMBER} + 1)) \
-              fi",
+            script: '''#! /bin/bash
+              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
+              if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
+                echo ${LS_RELEASE_NUMBER}
+              elif [ -z "${GIT_COMMIT}" ]; then
+                echo ${LS_RELEASE_NUMBER}
+              else
+                echo $((${LS_RELEASE_NUMBER} + 1))
+              fi''',
             returnStdout: true).trim()
           env.PACKAGE_TAG = sh(
-            script: "#!/bin/bash \
-              if [ -e package_versions.txt ] ; then \
-                cat package_versions.txt | md5sum | cut -c1-8 \
-              else \
-                echo none \
-              fi",
+            script: '''#!/bin/bash
+              if [ -e package_versions.txt ] ; then
+                cat package_versions.txt | md5sum | cut -c1-8
+              else
+                echo none
+              fi''',
             returnStdout: true).trim()
           env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
         }
@@ -104,7 +104,9 @@ pipeline {
             docker stop ${containers}
           fi
           docker system prune -af --volumes || : '''
-        echo "The default github branch detected as ${GH_DEFAULT_BRANCH}"
+        sh '''#! /bin/bash
+          echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
+        echo "The current ${EXT_REPO} version is ${EXT_RELEASE}"
       }
     }
     // Sanitize the release tag and strip illegal docker or github characters
