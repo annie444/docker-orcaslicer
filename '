@@ -78,23 +78,23 @@ pipeline {
             script: "echo ${LS_RELEASE} |sed 's/^.*-ls//g' ",
             returnStdout: true).trim()
           env.LS_TAG_NUMBER = sh(
-            script: "! /bin/bash \
-              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null) \
-              if [ \"${tagsha}\" == \"${COMMIT_SHA}\" ]; then \
-                echo ${LS_RELEASE_NUMBER} \
-              elif [ -z \"${GIT_COMMIT}\" ]; then \
-                echo ${LS_RELEASE_NUMBER} \
-              else \
-                echo $((${LS_RELEASE_NUMBER} + 1)) \
-              fi",
+            script: '''#! /bin/bash
+              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
+              if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
+                echo ${LS_RELEASE_NUMBER}
+              elif [ -z "${GIT_COMMIT}" ]; then
+                echo ${LS_RELEASE_NUMBER}
+              else
+                echo $((${LS_RELEASE_NUMBER} + 1))
+              fi''',
             returnStdout: true).trim()
           env.PACKAGE_TAG = sh(
-            script: "#!/bin/bash \
-              if [ -e package_versions.txt ] ; then \
-                cat package_versions.txt | md5sum | cut -c1-8 \
-              else \
-                echo none \
-              fi",
+            script: '''#!/bin/bash
+              if [ -e package_versions.txt ] ; then
+                cat package_versions.txt | md5sum | cut -c1-8
+              else
+                echo none
+              fi''',
             returnStdout: true).trim()
           env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
         }
@@ -104,7 +104,8 @@ pipeline {
             docker stop ${containers}
           fi
           docker system prune -af --volumes || : '''
-        echo "The default github branch detected as ${GH_DEFAULT_BRANCH}"
+        sh '''#! /bin/bash
+          echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
       }
     }
     // Sanitize the release tag and strip illegal docker or github characters
