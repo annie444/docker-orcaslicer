@@ -13,7 +13,7 @@ pipeline {
   // Configuration for the variables used for this specific repo
   environment {
     GITHUB_TOKEN = credentials('a0cdb864-697e-4276-84e9-671949df27f1')
-    GIT_SIGNING_KEY = credentials('e7828431-1ae4-4165-b943-4a0aa5ef0eca')
+    GIT_SIGNING_KEY = credentials('fa438828-77be-4720-80b5-006c6243f5a6')
     EXT_USER = 'SoftFever'
     EXT_REPO = 'OrcaSlicer'
     BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
@@ -36,12 +36,10 @@ pipeline {
     stage('Set git config') {
       steps {
         sh '''#!/bin/bash
-          cat ${GIT_SIGNING_KEY} > /config/.ssh/id_sign
-          chmod 600 /config/.ssh/id_sign
-          ssh-keygen -y -f /config/.ssh/id_sign > /config/.ssh/id_sign.pub
-          echo "Using $(ssh-keygen -lf /config/.ssh/id_sign) to sign commits"
+          ssh-keygen -y -f ${GIT_SIGNING_KEY} > ${GIT_SIGNING_KEY}.pub
+          echo "Using $(ssh-keygen -lf ${GIT_SIGNING_KEY}) to sign commits"
           git config --global gpg.format ssh
-          git config --global user.signingkey /config/.ssh/id_sign
+          git config --global user.signingkey ${GIT_SIGNING_KEY}
           git config --global commit.gpgsign true
         '''
       }
