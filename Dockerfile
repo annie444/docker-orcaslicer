@@ -17,12 +17,12 @@ ENV TITLE=OrcaSlicer \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN curl -o \
-      /kclient/public/icon.png \
+      /usr/share/backgrounds/bg_default.png \
       https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install --no-install-recommends -y \
-      firefox-esr \
+      firefox \
       gstreamer1.0-alsa \
       gstreamer1.0-gl \
       gstreamer1.0-gtk3 \
@@ -65,7 +65,6 @@ RUN chmod +x $STARTUPDIR/custom_startup.sh
 RUN chmod 755 $STARTUPDIR/custom_startup.sh
 
 RUN cp $HOME/.config/xfce4/xfconf/single-application-xfce-perchannel-xml/* $HOME/.config/xfce4/xfconf/xfce-perchannel-xml/
-RUN cp /usr/share/backgrounds/bg_kasm.png /usr/share/backgrounds/bg_default.png
 RUN apt-get remove -y xfce4-panel
 
 # add local files
