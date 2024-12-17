@@ -17,6 +17,8 @@ pipeline {
     BUILD_VERSION_ARG = 'OS'
     LS_USER = 'annie444'
     LS_REPO = 'docker-ci'
+    EXT_USER = 'SoftFever'
+    EXT_REPO = 'OrcaSlicer'
     CONTAINER_NAME = 'ci'
     IMAGE = 'ci'
     DEV_IMAGE = 'dev-ci'
