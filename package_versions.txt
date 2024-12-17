@@ -89,7 +89,6 @@ dmsetup                            2:1.02.167-1ubuntu1                    deb
 dns-root-data                      2023112702~ubuntu0.20.04.1             deb                           
 dnsmasq-base                       2.90-0ubuntu0.20.04.1                  deb                           
 docbook-xml                        4.5-9                                  deb                           
-dom7                               4.0.1                                  npm           (+1 duplicate)  
 dosfstools                         4.1-2                                  deb                           
 dpkg                               1.19.7ubuntu3.2                        deb                           
 e2fsprogs                          1.45.5-2ubuntu1.2                      deb                           
@@ -1514,11 +1513,9 @@ six                                1.14.0                                 python
 software-properties-common         0.99.9.12                              deb                           
 sound-theme-freedesktop            0.8-2ubuntu1                           deb                           
 ssl-cert                           1.0.39                                 deb                           
-ssr-window                         4.0.1                                  npm           (+1 duplicate)  
 sudo                               1.8.31-1ubuntu1.5                      deb                           
 supervisor                         4.1.0                                  python                        
 supervisor                         4.1.0-1ubuntu1                         deb                           
-swiper                             7.2.0                                  npm           (+1 duplicate)  
 switcheroo-control                 2.1-1                                  deb                           
 system-config-printer              1.5.12-0ubuntu1.1                      deb                           
 system-config-printer-common       1.5.12-0ubuntu1.1                      deb                           
