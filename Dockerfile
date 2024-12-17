@@ -47,11 +47,9 @@ RUN curl -o \
     ORCASLICER_UPPER_VERSION=$(echo ${ORCASLICER_VERSION} | sed 's/\b\(.\)/\u\1/g') && \
     cd /tmp && \
     curl -o \
-      /tmp/orca.app -L \
-      "https://github.com/SoftFever/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_${ORCASLICER_UPPER_VERSION}.AppImage" && \
-    chmod +x /tmp/orca.app && \
-    ./orca.app --appimage-extract && \
-    mv squashfs-root /opt/orcaslicer && \
+      /opt/orca.app -L \
+      "https://github.com/SoftFever/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_Ubuntu2404_${ORCASLICER_UPPER_VERSION}.AppImage" && \
+    chmod +x /opt/orca.app && \
     apt-get autoclean && \
     rm -rf \
       /config/.cache \

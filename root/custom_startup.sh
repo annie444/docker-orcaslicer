@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -ex
-START_COMMAND="/opt/orcaslicer/AppRun"
-PGREP="orcaslicer"
+START_COMMAND="/opt/orca.app"
+PGREP="orca"
 export MAXIMIZE="true"
-export MAXIMIZE_NAME="OrcaSlicer"
+export MAXIMIZE_NAME="Untitled"
 MAXIMIZE_SCRIPT=$STARTUPDIR/maximize_window.sh
 DEFAULT_ARGS=""
 ARGS=${APP_ARGS:-$DEFAULT_ARGS}
