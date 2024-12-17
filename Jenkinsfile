@@ -13,30 +13,32 @@ pipeline {
   // Configuration for the variables used for this specific repo
   environment {
     GITHUB_TOKEN = credentials('ea102c7a-6fe2-4343-8c84-25459ebce914')
-    GIT_SIGNING_KEY = credentials('fa438828-77be-4720-80b5-006c6243f5a6')
-    EXT_USER = 'SoftFever'
-    EXT_REPO = 'OrcaSlicer'
-    BUILD_VERSION_ARG = 'ORCASLICER_VERSION'
+    GIT_SIGNING_KEY = credentials('fa438828-77be-4720-80b5-006c6243f5a6') 
+    BUILD_VERSION_ARG = 'OS'
     LS_USER = 'annie444'
-    LS_REPO = 'docker-orcaslicer'
-    CONTAINER_NAME = 'orcaslicer'
-    DOCKERHUB_IMAGE = 'annie444/orcaslicer'
+    LS_REPO = 'docker-ci'
+    CONTAINER_NAME = 'ci'
+    IMAGE = 'ci'
+    DEV_IMAGE = 'dev-ci'
+    PR_IMAGE = 'pr-ci'
     DIST_IMAGE = 'ubuntu'
-    MULTIARCH = 'false'
-    CI = 'true'
-    CI_WEB = 'true'
-    CI_PORT = '3000'
-    CI_SSL = 'false'
-    CI_DELAY = '120'
-    CI_DOCKERENV = 'TZ=US/Pacific'
-    CI_AUTH = 'user:password'
-    CI_WEBPATH = ''
-    EXIT_STATUS = ''
-    
+    MULTIARCH='false'
+    TITLE='Ci'
+    CI='false'
+    CI_WEB='false'
+    CI_PORT='80'
+    CI_SSL='true'
+    CI_DELAY='30'
+    CI_DOCKERENV=''
+    CI_AUTH=''
+    CI_WEBPATH=''
+    S3_ENDPOINT = 's3.jpeg.gay'
+    S3_BUCKET = 'ci-tests.jpeg.gay'
+    S3_REGION = 'us-west-2'
   }
   stages {
-    stage('Set git config') {
-      steps {
+    stage("Set git config"){
+      steps{
         sh '''#!/bin/bash
           ssh-keygen -y -f ${GIT_SIGNING_KEY} > ${GIT_SIGNING_KEY}.pub
           echo "Using $(ssh-keygen -lf ${GIT_SIGNING_KEY}) to sign commits"
@@ -47,10 +49,17 @@ pipeline {
       }
     }
     // Setup all the basic environment variables needed for the build
-    stage('Set ENV Variables base') {
-      steps {
+    stage("Set ENV Variables base"){
+      steps{
         echo "Running on node: ${NODE_NAME}"
-        script {
+        sh '''#! /bin/bash
+              containers=$(docker ps -aq)
+              if [[ -n "${containers}" ]]; then
+                docker stop ${containers}
+              fi
+              docker system prune -af --volumes || : '''
+        script{
+          env.EXIT_STATUS = ''
           env.LS_RELEASE = sh(
             script: '''docker run --rm quay.io/skopeo/stable:v1 inspect docker://ghcr.io/${LS_USER}/${CONTAINER_NAME}:latest 2>/dev/null | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
             returnStdout: true).trim()
@@ -67,55 +76,60 @@ pipeline {
             script: '''git remote show origin | grep "HEAD branch:" | sed 's|.*HEAD branch: ||' ''',
             returnStdout: true).trim()
           env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
-          env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
-          env.PULL_REQUEST = env.CHANGE_ID
-          env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
+          env.LINK = 'https://github.com/users/' + env.LS_USER + '/packages/container/' + env.IMAGE
           env.EXT_RELEASE = sh(
             script: '''curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq -r '. | .tag_name' ''',
             returnStdout: true
           ).trim()
-          env.LS_RELEASE_NUMBER = sh(
-            script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
-            returnStdout: true).trim()
-          env.LS_TAG_NUMBER = sh(
-            script: '''#! /bin/bash
-              tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
-              if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
-                echo ${LS_RELEASE_NUMBER}
-              elif [ -z "${GIT_COMMIT}" ]; then
-                echo ${LS_RELEASE_NUMBER}
-              else
-                echo $((${LS_RELEASE_NUMBER} + 1))
-              fi''',
-            returnStdout: true).trim()
-          env.PACKAGE_TAG = sh(
-            script: '''#!/bin/bash
-              if [ -e package_versions.txt ] ; then
-                cat package_versions.txt | md5sum | cut -c1-8
-              else
-                echo none
-              fi''',
-            returnStdout: true).trim()
+          env.PULL_REQUEST = env.CHANGE_ID
+          env.TEMPLATED_FILES = 'Jenkinsfile README.md LICENSE .editorconfig ./.github/CONTRIBUTING.md ./.github/FUNDING.yml ./.github/ISSUE_TEMPLATE/config.yml ./.github/ISSUE_TEMPLATE/issue.bug.yml ./.github/ISSUE_TEMPLATE/issue.feature.yml ./.github/PULL_REQUEST_TEMPLATE.md ./.github/workflows/external_trigger_scheduler.yml ./.github/workflows/greetings.yml ./.github/workflows/package_trigger_scheduler.yml ./.github/workflows/call_issue_pr_tracker.yml ./.github/workflows/call_issues_cron.yml ./.github/workflows/permissions.yml ./.github/workflows/external_trigger.yml'
           env.RELEASE_LINK = 'https://github.com/' + env.EXT_USER + '/' + env.EXT_REPO + '/releases/tag/' + env.EXT_RELEASE
         }
         sh '''#! /bin/bash
-          containers=$(docker ps -aq)
-          if [[ -n "${containers}" ]]; then
-            docker stop ${containers}
-          fi
-          docker system prune -af --volumes || : '''
-        sh '''#! /bin/bash
-          echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
+              echo "The default github branch detected as ${GH_DEFAULT_BRANCH}" '''
         echo "The current ${EXT_REPO} version is ${EXT_RELEASE}"
+        script{
+          env.LS_RELEASE_NUMBER = sh(
+            script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
+            returnStdout: true).trim()
+        }
+        script{
+          env.LS_TAG_NUMBER = sh(
+            script: '''#! /bin/bash
+                       tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
+                       if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
+                         echo ${LS_RELEASE_NUMBER}
+                       elif [ -z "${GIT_COMMIT}" ]; then
+                         echo ${LS_RELEASE_NUMBER}
+                       else
+                         echo $((${LS_RELEASE_NUMBER} + 1))
+                       fi''',
+            returnStdout: true).trim()
+        }
+      }
+    }
+    /* #######################
+       Package Version Tagging
+       ####################### */
+    // Grab the current package versions in Git to determine package tag
+    stage("Set Package tag"){
+      steps{
+        script{
+          env.PACKAGE_TAG = sh(
+            script: '''#!/bin/bash
+                       if [ -e package_versions.txt ] ; then
+                         cat package_versions.txt | md5sum | cut -c1-8
+                       else
+                         echo none
+                       fi''',
+            returnStdout: true).trim()
+        }
       }
     }
     // Sanitize the release tag and strip illegal docker or github characters
-    stage('Sanitize tag') {
-      environment {
-        SEMVER = ''
-      }
-      steps {
-        script {
+    stage("Sanitize tag"){
+      steps{
+        script{
           env.EXT_RELEASE_CLEAN = sh(
             script: '''echo ${EXT_RELEASE} | sed 's/[~,%@+;:/ ]//g' ''',
             returnStdout: true).trim()
@@ -140,20 +154,21 @@ pipeline {
             }
             println("SEMVER: ${env.SEMVER}")
           } else {
-            println('No SEMVER detected')
+            println("No SEMVER detected")
           }
+
         }
       }
     }
     // If this is a master build use live docker endpoints
-    stage('Set ENV live build') {
+    stage("Set ENV live build"){
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
       }
       steps {
-        script {
-          env.IMAGE = env.DOCKERHUB_IMAGE
+        script{
+          env.IMAGE = env.IMAGE
           env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
@@ -163,20 +178,21 @@ pipeline {
           env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+          env.VERSIONS_LINK = 'https://github.com/users/' + env.LS_USER + '/packages/container/' + env.IMAGE + '/versions'
+          env.BUILDCACHE = 'ghcr.io/' + env.LS_USER + '/dev-buildcache'
         }
       }
     }
     // If this is a dev build use dev docker endpoints
-    stage('Set ENV dev build') {
+    stage("Set ENV dev build"){
       when {
-        not { branch 'master' }
+        not {branch "master"}
         environment name: 'CHANGE_ID', value: ''
       }
       steps {
-        script {
-          env.IMAGE = env.DOCKERHUB_IMAGE
-          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lsiodev-' + env.CONTAINER_NAME
+        script{
+          env.IMAGE = env.DEV_IMAGE
+          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/dev-' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           } else {
@@ -185,19 +201,20 @@ pipeline {
           env.VERSION_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+          env.VERSIONS_LINK = 'https://github.com/users/' + env.LS_USER + '/packages/container/' + env.DEV_IMAGE + '/versions'
+          env.BUILDCACHE = 'ghcr.io/' + env.LS_USER + '/dev-buildcache'
         }
       }
     }
     // If this is a pull request build use dev docker endpoints
-    stage('Set ENV PR build') {
+    stage("Set ENV PR build"){
       when {
-        not { environment name: 'CHANGE_ID', value: '' }
+        not {environment name: 'CHANGE_ID', value: ''}
       }
       steps {
-        script {
-          env.IMAGE = env.DOCKERHUB_IMAGE
-          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/lspipepr-' + env.CONTAINER_NAME
+        script{
+          env.IMAGE = env.PR_IMAGE
+          env.GITHUBIMAGE = 'ghcr.io/' + env.LS_USER + '/pr-' + env.CONTAINER_NAME
           if (env.MULTIARCH == 'true') {
             env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
           } else {
@@ -207,19 +224,48 @@ pipeline {
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '-pr-' + env.PULL_REQUEST
           env.EXT_RELEASE_TAG = 'version-' + env.EXT_RELEASE_CLEAN
           env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/pull/' + env.PULL_REQUEST
-          env.BUILDCACHE = 'ghcr.io/annie444/buildcache'
+          env.VERSIONS_LINK = 'https://github.com/users/' + env.LS_USER + '/packages/container/' + env.PR_IMAGE + '/versions'
+          env.BUILDCACHE = 'ghcr.io/' + env.LS_USER + '/dev-buildcache'
+        }
+      }
+    }
+    // Run ShellCheck
+    stage('ShellCheck') {
+      when {
+        environment name: 'CI', value: 'true'
+      }
+      steps {
+        withCredentials([
+          string(credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
+          string(credentialsId: 'ci-tests-s3-secret-access-key', variable: 'S3_SECRET')
+        ]) {
+          script{
+            env.SHELLCHECK_URL = 'https://ci-tests.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/shellcheck-result.xml'
+          }
+          sh '''curl -sL https://raw.githubusercontent.com/linuxserver/docker-jenkins-builder/master/checkrun.sh | /bin/bash'''
+          sh '''#! /bin/bash
+                docker run --rm \
+                  -v ${WORKSPACE}:/mnt \
+                  -e AWS_ACCESS_KEY_ID=\"${S3_KEY}\" \
+                  -e AWS_SECRET_ACCESS_KEY=\"${S3_SECRET}\" \
+                  ghcr.io/linuxserver/baseimage-alpine:3.20 s6-envdir -fn -- /var/run/s6/container_environment /bin/bash -c "\
+                    apk add --no-cache python3 && \
+                    python3 -m venv /lsiopy && \
+                    pip install --no-cache-dir -U pip && \
+                    pip install --no-cache-dir s3cmd && \
+                    s3cmd put --no-preserve --acl-public -m text/xml --region ${S3_REGION} --host ${S3_ENDPOINT} /mnt/shellcheck-result.xml s3://${S3_BUCKET}/${IMAGE}/${META_TAG}/shellcheck-result.xml" || :'''
         }
       }
     }
     // If this is a master build check the S6 service file perms
-    stage('Check S6 Service file Permissions') {
+    stage("Check S6 Service file Permissions"){
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        script {
+        script{
           sh '''#! /bin/bash
             WRONG_PERM=$(find ./  -path "./.git" -prune -o \\( -name "run" -o -name "finish" -o -name "check" \\) -not -perm -u=x,g=x,o=x -print)
             if [[ -n "${WRONG_PERM}" ]]; then
@@ -232,8 +278,8 @@ pipeline {
       }
     }
     /* ###############
-    Build Container
-    ############### */
+       Build Container
+       ############### */
     // Build Docker container for push to LS Repo
     stage('Build-Single') {
       when {
@@ -248,38 +294,38 @@ pipeline {
         sh "docker buildx build \
           --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
           --label \"org.opencontainers.image.authors=linuxserver.io\" \
-          --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
-          --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
-          --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
+          --label \"org.opencontainers.image.url=https://github.com/${LS_USER}/${LS_REPO}/packages\" \
+          --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/${LS_REPO}\" \
+          --label \"org.opencontainers.image.source=https://github.com/${LS_USER}/${LS_REPO}\" \
           --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
           --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-          --label \"org.opencontainers.image.vendor=annie444\" \
+          --label \"org.opencontainers.image.vendor=jpeg.gay\" \
           --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
           --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
-          --label \"org.opencontainers.image.title=Orcaslicer\" \
-          --label \"org.opencontainers.image.description=[Orca Slicer](https://github.com/SoftFever/OrcaSlicer) is an open source slicer for FDM printers. OrcaSlicer is fork of Bambu Studio, it was previously known as BambuStudio-SoftFever, Bambu Studio is forked from PrusaSlicer by Prusa Research, which is from Slic3r by Alessandro Ranellucci and the RepRap community\" \
+          --label \"org.opencontainers.image.title=${TITLE}\" \
+          --label \"org.opencontainers.image.description=${TITLE} image by linuxserver.io\" \
           --no-cache --pull -t ${IMAGE}:${META_TAG} --platform=linux/amd64 \
           --provenance=false --sbom=false --builder=container --load \
           --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
         sh '''#! /bin/bash
-          set -e
-          IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-          for i in "${CACHE[@]}"; do
-            docker tag ${IMAGE}:${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-          done
-        '''
-        retryBackoff(5, 5) {
-          sh '''#! /bin/bash
-            set -e
-            echo $GITHUB_TOKEN | docker login ghcr.io -u annie444 --password-stdin
-            if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+              set -e
               IFS=',' read -ra CACHE <<< "$BUILDCACHE"
               for i in "${CACHE[@]}"; do
-                docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                docker tag ${IMAGE}:${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
               done
-              wait
-            fi
-          '''
+           '''
+        retry_backoff(5,5) {
+            sh '''#! /bin/bash
+                  set -e
+                  echo $GITHUB_TOKEN | docker login ghcr.io -u ${LS_USER} --password-stdin
+                  if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                    IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                    for i in "${CACHE[@]}"; do
+                      docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                    done
+                    wait
+                  fi
+              '''
         }
       }
     }
@@ -300,38 +346,47 @@ pipeline {
             sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
-              --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
-              --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
-              --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.url=https://github.com/${LS_USER}/${LS_REPO}/packages\" \
+              --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/${LS_REPO}\" \
+              --label \"org.opencontainers.image.source=https://github.com/${LS_USER}/${LS_REPO}\" \
               --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
               --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.vendor=annie444\" \
+              --label \"org.opencontainers.image.vendor=jpeg.gay\" \
               --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
               --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.title=Orcaslicer\" \
-              --label \"org.opencontainers.image.description=[Orca Slicer](https://github.com/SoftFever/OrcaSlicer) is an open source slicer for FDM printers. OrcaSlicer is fork of Bambu Studio, it was previously known as BambuStudio-SoftFever, Bambu Studio is forked from PrusaSlicer by Prusa Research, which is from Slic3r by Alessandro Ranellucci and the RepRap community\" \
+              --label \"org.opencontainers.image.title=${TITLE}\" \
+              --label \"org.opencontainers.image.description=${TITLE} image by linuxserver.io\" \
               --no-cache --pull -t ${IMAGE}:amd64-${META_TAG} --platform=linux/amd64 \
               --provenance=false --sbom=false --builder=container --load \
               --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
             sh '''#! /bin/bash
-              set -e
-              IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-              for i in "${CACHE[@]}"; do
-                docker tag ${IMAGE}:amd64-${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-              done
-            '''
-            retryBackoff(5, 5) {
-              sh '''#! /bin/bash
-                set -e
-                echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
-                if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                  set -e
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
-                    docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                    docker tag ${IMAGE}:amd64-${META_TAG} ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
-                  wait
-                fi
-              '''
+               '''
+            withCredentials([
+              [
+                $class: 'UsernamePasswordMultiBinding',
+                credentialsId: 'Quay.io-Robot',
+                usernameVariable: 'QUAYUSER',
+                passwordVariable: 'QUAYPASS'
+              ]
+            ]) {
+              retry_backoff(5,5) {
+                  sh '''#! /bin/bash
+                        set -e
+                        echo $GITHUB_TOKEN | docker login ghcr.io -u ${LS_USER} --password-stdin
+                        if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                          IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                          for i in "${CACHE[@]}"; do
+                            docker push ${i}:amd64-${COMMIT_SHA}-${BUILD_NUMBER} &
+                          done
+                          wait
+                        fi
+                    '''
+              }
             }
           }
         }
@@ -345,46 +400,55 @@ pipeline {
             sh "docker buildx build \
               --label \"org.opencontainers.image.created=${GITHUB_DATE}\" \
               --label \"org.opencontainers.image.authors=linuxserver.io\" \
-              --label \"org.opencontainers.image.url=https://github.com/annie444/docker-orcaslicer/packages\" \
-              --label \"org.opencontainers.image.documentation=https://github.com/annie444/docker-orcaslicer\" \
-              --label \"org.opencontainers.image.source=https://github.com/annie444/docker-orcaslicer\" \
+              --label \"org.opencontainers.image.url=https://github.com/${LS_USER}/${LS_REPO}/packages\" \
+              --label \"org.opencontainers.image.documentation=https://docs.linuxserver.io/images/${LS_REPO}\" \
+              --label \"org.opencontainers.image.source=https://github.com/${LS_USER}/${LS_REPO}\" \
               --label \"org.opencontainers.image.version=${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}\" \
               --label \"org.opencontainers.image.revision=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.vendor=annie444\" \
+              --label \"org.opencontainers.image.vendor=jpeg.gay\" \
               --label \"org.opencontainers.image.licenses=GPL-3.0-only\" \
               --label \"org.opencontainers.image.ref.name=${COMMIT_SHA}\" \
-              --label \"org.opencontainers.image.title=Orcaslicer\" \
-              --label \"org.opencontainers.image.description=[Orca Slicer](https://github.com/SoftFever/OrcaSlicer) is an open source slicer for FDM printers. OrcaSlicer is fork of Bambu Studio, it was previously known as BambuStudio-SoftFever, Bambu Studio is forked from PrusaSlicer by Prusa Research, which is from Slic3r by Alessandro Ranellucci and the RepRap community\" \
+              --label \"org.opencontainers.image.title=${TITLE}\" \
+              --label \"org.opencontainers.image.description=${TITLE} image by linuxserver.io\" \
               --no-cache --pull -f Dockerfile.aarch64 -t ${IMAGE}:arm64v8-${META_TAG} --platform=linux/arm64 \
               --provenance=false --sbom=false --builder=container --load \
               --build-arg ${BUILD_VERSION_ARG}=${EXT_RELEASE} --build-arg VERSION=\"${VERSION_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
             sh '''#! /bin/bash
-              set -e
-              IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-              for i in "${CACHE[@]}"; do
-                docker tag ${IMAGE}:arm64v8-${META_TAG} ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
-              done
-            '''
-            retryBackoff(5, 5) {
-              sh '''#! /bin/bash
-                set -e
-                echo $GITHUB_TOKEN | docker login ghcr.io -u LinuxServer-CI --password-stdin
-                if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                  set -e
                   IFS=',' read -ra CACHE <<< "$BUILDCACHE"
                   for i in "${CACHE[@]}"; do
-                    docker push ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} &
+                    docker tag ${IMAGE}:arm64v8-${META_TAG} ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
                   done
-                  wait
-                fi
-              '''
+               '''
+            withCredentials([
+              [
+                $class: 'UsernamePasswordMultiBinding',
+                credentialsId: 'Quay.io-Robot',
+                usernameVariable: 'QUAYUSER',
+                passwordVariable: 'QUAYPASS'
+              ]
+            ]) {
+              retry_backoff(5,5) {
+                  sh '''#! /bin/bash
+                        set -e
+                        echo $GITHUB_TOKEN | docker login ghcr.io -u ${LS_USER} --password-stdin
+                        if [[ "${PACKAGE_CHECK}" != "true" ]]; then
+                          IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                          for i in "${CACHE[@]}"; do
+                            docker push ${i}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} &
+                          done
+                          wait
+                        fi
+                    '''
+              }
             }
             sh '''#! /bin/bash
-              containers=$(docker ps -aq)
-              if [[ -n "${containers}" ]]; then
-                docker stop ${containers}
-              fi
-              docker system prune -af --volumes || :
-            '''
+                  containers=$(docker ps -aq)
+                  if [[ -n "${containers}" ]]; then
+                    docker stop ${containers}
+                  fi
+                  docker system prune -af --volumes || :
+               '''
           }
         }
       }
@@ -392,45 +456,45 @@ pipeline {
     // Take the image we just built and dump package versions for comparison
     stage('Update-packages') {
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
         sh '''#! /bin/bash
-          set -e
-          TEMPDIR=$(mktemp -d)
-          if [ "${MULTIARCH}" == "true" ] && [ "${PACKAGE_CHECK}" != "true" ]; then
-            LOCAL_CONTAINER=${IMAGE}:amd64-${META_TAG}
-          else
-            LOCAL_CONTAINER=${IMAGE}:${META_TAG}
-          fi
-          touch ${TEMPDIR}/package_versions.txt
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            -v ${TEMPDIR}:/tmp \
-            ghcr.io/anchore/syft:latest \
-            ${LOCAL_CONTAINER} -o table=/tmp/package_versions.txt
-          NEW_PACKAGE_TAG=$(md5sum ${TEMPDIR}/package_versions.txt | cut -c1-8 )
-          echo "Package tag sha from current packages in buit container is ${NEW_PACKAGE_TAG} comparing to old ${PACKAGE_TAG} from github"
-          if [ "${NEW_PACKAGE_TAG}" != "${PACKAGE_TAG}" ]; then
-            git clone https://github.com/${LS_USER}/${LS_REPO}.git ${TEMPDIR}/${LS_REPO}
-            git --git-dir ${TEMPDIR}/${LS_REPO}/.git checkout -f master
-            cp ${TEMPDIR}/package_versions.txt ${TEMPDIR}/${LS_REPO}/
-            cd ${TEMPDIR}/${LS_REPO}/
-            wait
-            git add package_versions.txt
-            git commit -m 'Bot Updating Package Versions'
-            git pull https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-            git push https://annie444:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
-            echo "true" > /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}
-            echo "Package tag updated, stopping build process"
-          else
-            echo "false" > /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}
-            echo "Package tag is same as previous continue with build process"
-          fi
-          rm -Rf ${TEMPDIR}'''
-        script {
+              set -e
+              TEMPDIR=$(mktemp -d)
+              if [ "${MULTIARCH}" == "true" ] && [ "${PACKAGE_CHECK}" != "true" ]; then
+                LOCAL_CONTAINER=${IMAGE}:amd64-${META_TAG}
+              else
+                LOCAL_CONTAINER=${IMAGE}:${META_TAG}
+              fi
+              touch ${TEMPDIR}/package_versions.txt
+              docker run --rm \
+                -v /var/run/docker.sock:/var/run/docker.sock:ro \
+                -v ${TEMPDIR}:/tmp \
+                ghcr.io/anchore/syft:latest \
+                ${LOCAL_CONTAINER} -o table=/tmp/package_versions.txt
+              NEW_PACKAGE_TAG=$(md5sum ${TEMPDIR}/package_versions.txt | cut -c1-8 )
+              echo "Package tag sha from current packages in buit container is ${NEW_PACKAGE_TAG} comparing to old ${PACKAGE_TAG} from github"
+              if [ "${NEW_PACKAGE_TAG}" != "${PACKAGE_TAG}" ]; then
+                git clone https://github.com/${LS_USER}/${LS_REPO}.git ${TEMPDIR}/${LS_REPO}
+                git --git-dir ${TEMPDIR}/${LS_REPO}/.git checkout -f master
+                cp ${TEMPDIR}/package_versions.txt ${TEMPDIR}/${LS_REPO}/
+                cd ${TEMPDIR}/${LS_REPO}/
+                wait
+                git add package_versions.txt
+                git commit -m 'Bot Updating Package Versions'
+                git pull https://${LS_USER}:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                git push https://${LS_USER}:${GITHUB_TOKEN}@github.com/${LS_USER}/${LS_REPO}.git master
+                echo "true" > /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}
+                echo "Package tag updated, stopping build process"
+              else
+                echo "false" > /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}
+                echo "Package tag is same as previous continue with build process"
+              fi
+              rm -Rf ${TEMPDIR}'''
+        script{
           env.PACKAGE_UPDATED = sh(
             script: '''cat /tmp/packages-${COMMIT_SHA}-${BUILD_NUMBER}''',
             returnStdout: true).trim()
@@ -440,13 +504,13 @@ pipeline {
     // Exit the build if the package file was just updated
     stage('PACKAGE-exit') {
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
         environment name: 'PACKAGE_UPDATED', value: 'true'
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        script {
+        script{
           env.EXIT_STATUS = 'ABORTED'
         }
       }
@@ -454,7 +518,7 @@ pipeline {
     // Exit the build if this is just a package check and there are no changes to push
     stage('PACKAGECHECK-exit') {
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
         environment name: 'PACKAGE_UPDATED', value: 'false'
         environment name: 'EXIT_STATUS', value: ''
@@ -463,14 +527,14 @@ pipeline {
         }
       }
       steps {
-        script {
+        script{
           env.EXIT_STATUS = 'ABORTED'
         }
       }
     }
     /* #######
-    Testing
-    ####### */
+       Testing
+       ####### */
     // Run Container tests
     stage('Test') {
       when {
@@ -479,54 +543,57 @@ pipeline {
       }
       steps {
         withCredentials([
-          string( credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
-          string( credentialsId: 'ci-tests-s3-secret-access-key    ', variable: 'S3_SECRET')
+          string(credentialsId: 'ci-tests-s3-key-id', variable: 'S3_KEY'),
+          string(credentialsId: 'ci-tests-s3-secret-access-key	', variable: 'S3_SECRET')
         ]) {
-          script {
-            env.CI_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
-            env.CI_JSON_URL = 'https://s3.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
+          script{
+            env.CI_URL = 'https://ci-tests.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/index.html'
+            env.CI_JSON_URL = 'https://ci-tests.jpeg.gay/' + env.IMAGE + '/' + env.META_TAG + '/report.json'
           }
           sh '''#! /bin/bash
-            set -e
-            if grep -q 'docker-baseimage' <<< "${LS_REPO}"; then
-              echo "Detected baseimage, setting LSIO_FIRST_PARTY=true"
-              if [ -n "${CI_DOCKERENV}" ]; then
-                CI_DOCKERENV="LSIO_FIRST_PARTY=true|${CI_DOCKERENV}"
-              else
-                CI_DOCKERENV="LSIO_FIRST_PARTY=true"
-              fi
-            fi
-            docker pull ghcr.io/linuxserver/ci:latest
-            if [ "${MULTIARCH}" == "true" ]; then
-              docker pull ghcr.io/annie444/buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} --platform=arm64
-              docker tag ghcr.io/annie444/buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${META_TAG}
-            fi
-            docker run --rm \
-            --shm-size=1gb \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -e IMAGE=\"${IMAGE}\" \
-            -e DOCKER_LOGS_TIMEOUT=\"${CI_DELAY}\" \
-            -e TAGS=\"${CI_TAGS}\" \
-            -e META_TAG=\"${META_TAG}\" \
-            -e RELEASE_TAG=\"latest\" \
-            -e PORT=\"${CI_PORT}\" \
-            -e SSL=\"${CI_SSL}\" \
-            -e BASE=\"${DIST_IMAGE}\" \
-            -e SECRET_KEY=\"${S3_SECRET}\" \
-            -e ACCESS_KEY=\"${S3_KEY}\" \
-            -e DOCKER_ENV=\"${CI_DOCKERENV}\" \
-            -e WEB_SCREENSHOT=\"${CI_WEB}\" \
-            -e WEB_AUTH=\"${CI_AUTH}\" \
-            -e WEB_PATH=\"${CI_WEBPATH}\" \
-            -e NODE_NAME=\"${NODE_NAME}\" \
-            -t ghcr.io/linuxserver/ci:latest \
-            python3 test_build.py'''
+                set -e
+                if grep -q 'docker-baseimage' <<< "${LS_REPO}"; then
+                  echo "Detected baseimage, setting LSIO_FIRST_PARTY=true"
+                  if [ -n "${CI_DOCKERENV}" ]; then
+                    CI_DOCKERENV="LSIO_FIRST_PARTY=true|${CI_DOCKERENV}"
+                  else
+                    CI_DOCKERENV="LSIO_FIRST_PARTY=true"
+                  fi
+                fi
+                docker pull ghcr.io/${LS_USER}/ci:latest
+                if [ "${MULTIARCH}" == "true" ]; then
+                  docker pull ghcr.io/${LS_USER}/dev-buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} --platform=arm64
+                  docker tag ghcr.io/${LS_USER}/dev-buildcache:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${META_TAG}
+                fi
+                docker run --rm \
+                --shm-size=1gb \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -e IMAGE=\"${IMAGE}\" \
+                -e DOCKER_LOGS_TIMEOUT=\"${CI_DELAY}\" \
+                -e TAGS=\"${CI_TAGS}\" \
+                -e META_TAG=\"${META_TAG}\" \
+                -e RELEASE_TAG=\"latest\" \
+                -e PORT=\"${CI_PORT}\" \
+                -e S3_ENDPOINT=\"${S3_ENDPOINT}\" \
+                -e S3_BUCKET=\"${S3_BUCKET}\" \
+                -e S3_REGION=\"${S3_REGION}\" \
+                -e SSL=\"${CI_SSL}\" \
+                -e BASE=\"${DIST_IMAGE}\" \
+                -e SECRET_KEY=\"${S3_SECRET}\" \
+                -e ACCESS_KEY=\"${S3_KEY}\" \
+                -e DOCKER_ENV=\"${CI_DOCKERENV}\" \
+                -e WEB_SCREENSHOT=\"${CI_WEB}\" \
+                -e WEB_AUTH=\"${CI_AUTH}\" \
+                -e WEB_PATH=\"${CI_WEBPATH}\" \
+                -e NODE_NAME=\"${NODE_NAME}\" \
+                -t ghcr.io/${LS_USER}/ci:latest \
+                python3 test_build.py'''
         }
       }
     }
     /* ##################
-    Release Logic
-    ################## */
+         Release Logic
+       ################## */
     // If this is an amd64 only image only push a single image
     stage('Docker-Push-Single') {
       when {
@@ -534,23 +601,23 @@ pipeline {
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        retryBackoff(5, 5) {
+        retry_backoff(5,5) {
           sh '''#! /bin/bash
-            set -e
-            for PUSHIMAGE in "${GITHUBIMAGE}"; do
-              [[ ${PUSHIMAGE%%/*} =~ \\. ]] && PUSHIMAGEPLUS="${PUSHIMAGE}" || PUSHIMAGEPLUS="docker.io/${PUSHIMAGE}"
-              IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-              for i in "${CACHE[@]}"; do
-                if [[ "${PUSHIMAGEPLUS}" == "$(cut -d "/" -f1 <<< ${i})"* ]]; then
-                  CACHEIMAGE=${i}
-                fi
-              done
-              docker buildx imagetools create --prefer-index=false -t ${PUSHIMAGE}:${META_TAG} -t ${PUSHIMAGE}:latest -t ${PUSHIMAGE}:${EXT_RELEASE_TAG} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-              if [ -n "${SEMVER}" ]; then
-                docker buildx imagetools create --prefer-index=false -t ${PUSHIMAGE}:${SEMVER} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-              fi
-            done
-          '''
+                set -e
+                for PUSHIMAGE in "${GITHUBIMAGE}"; do
+                  PUSHIMAGEPLUS="${PUSHIMAGE}"
+                  IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                  for i in "${CACHE[@]}"; do
+                      if [[ "${PUSHIMAGEPLUS}" == "$(cut -d "/" -f1 <<< ${i})"* ]]; then
+                          CACHEIMAGE=${i}
+                      fi
+                  done
+                  docker buildx imagetools create --prefer-index=false -t ${PUSHIMAGE}:${META_TAG} -t ${PUSHIMAGE}:latest -t ${PUSHIMAGE}:${EXT_RELEASE_TAG} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
+                  if [ -n "${SEMVER}" ]; then
+                    docker buildx imagetools create --prefer-index=false -t ${PUSHIMAGE}:${SEMVER} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
+                  fi
+                done
+              '''
         }
       }
     }
@@ -561,41 +628,41 @@ pipeline {
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        retryBackoff(5, 5) {
+        retry_backoff(5,5) {
           sh '''#! /bin/bash
-            set -e
-            for MANIFESTIMAGE in "${GITHUBIMAGE}"; do
-              [[ ${MANIFESTIMAGE%%/*} =~ \\. ]] && MANIFESTIMAGEPLUS="${MANIFESTIMAGE}" || MANIFESTIMAGEPLUS="docker.io/${MANIFESTIMAGE}"
-              IFS=',' read -ra CACHE <<< "$BUILDCACHE"
-              for i in "${CACHE[@]}"; do
-                if [[ "${MANIFESTIMAGEPLUS}" == "$(cut -d "/" -f1 <<< ${i})"* ]]; then
-                  CACHEIMAGE=${i}
-                fi
-              done
-              docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:amd64-${META_TAG} -t ${MANIFESTIMAGE}:amd64-latest -t ${MANIFESTIMAGE}:amd64-${EXT_RELEASE_TAG} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-              docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:arm64v8-${META_TAG} -t ${MANIFESTIMAGE}:arm64v8-latest -t ${MANIFESTIMAGE}:arm64v8-${EXT_RELEASE_TAG} ${CACHEIMAGE}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
-              if [ -n "${SEMVER}" ]; then
-                docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:amd64-${SEMVER} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
-                docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:arm64v8-${SEMVER} ${CACHEIMAGE}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
-              fi
-            done
-            for MANIFESTIMAGE in "${IMAGE}" "${GITLABIMAGE}" "${GITHUBIMAGE}" "${QUAYIMAGE}"; do
-              docker buildx imagetools create -t ${MANIFESTIMAGE}:latest ${MANIFESTIMAGE}:amd64-latest ${MANIFESTIMAGE}:arm64v8-latest
-              docker buildx imagetools create -t ${MANIFESTIMAGE}:${META_TAG} ${MANIFESTIMAGE}:amd64-${META_TAG} ${MANIFESTIMAGE}:arm64v8-${META_TAG}
+                set -e
+                for MANIFESTIMAGE in "${GITHUBIMAGE}"; do
+                  MANIFESTIMAGEPLUS="${MANIFESTIMAGE}"
+                  IFS=',' read -ra CACHE <<< "$BUILDCACHE"
+                  for i in "${CACHE[@]}"; do
+                      if [[ "${MANIFESTIMAGEPLUS}" == "$(cut -d "/" -f1 <<< ${i})"* ]]; then
+                          CACHEIMAGE=${i}
+                      fi
+                  done
+                  docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:amd64-${META_TAG} -t ${MANIFESTIMAGE}:amd64-latest -t ${MANIFESTIMAGE}:amd64-${EXT_RELEASE_TAG} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
+                  docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:arm64v8-${META_TAG} -t ${MANIFESTIMAGE}:arm64v8-latest -t ${MANIFESTIMAGE}:arm64v8-${EXT_RELEASE_TAG} ${CACHEIMAGE}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
+                  if [ -n "${SEMVER}" ]; then
+                    docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:amd64-${SEMVER} ${CACHEIMAGE}:amd64-${COMMIT_SHA}-${BUILD_NUMBER}
+                    docker buildx imagetools create --prefer-index=false -t ${MANIFESTIMAGE}:arm64v8-${SEMVER} ${CACHEIMAGE}:arm64v8-${COMMIT_SHA}-${BUILD_NUMBER}
+                  fi
+                done
+                for MANIFESTIMAGE in "${IMAGE}" "${GITLABIMAGE}" "${GITHUBIMAGE}" "${QUAYIMAGE}"; do
+                  docker buildx imagetools create -t ${MANIFESTIMAGE}:latest ${MANIFESTIMAGE}:amd64-latest ${MANIFESTIMAGE}:arm64v8-latest
+                  docker buildx imagetools create -t ${MANIFESTIMAGE}:${META_TAG} ${MANIFESTIMAGE}:amd64-${META_TAG} ${MANIFESTIMAGE}:arm64v8-${META_TAG}
 
-              docker buildx imagetools create -t ${MANIFESTIMAGE}:${EXT_RELEASE_TAG} ${MANIFESTIMAGE}:amd64-${EXT_RELEASE_TAG} ${MANIFESTIMAGE}:arm64v8-${EXT_RELEASE_TAG}
-              if [ -n "${SEMVER}" ]; then
-                docker buildx imagetools create -t ${MANIFESTIMAGE}:${SEMVER} ${MANIFESTIMAGE}:amd64-${SEMVER} ${MANIFESTIMAGE}:arm64v8-${SEMVER}
-              fi
-            done
-          '''
+                  docker buildx imagetools create -t ${MANIFESTIMAGE}:${EXT_RELEASE_TAG} ${MANIFESTIMAGE}:amd64-${EXT_RELEASE_TAG} ${MANIFESTIMAGE}:arm64v8-${EXT_RELEASE_TAG}
+                  if [ -n "${SEMVER}" ]; then
+                    docker buildx imagetools create -t ${MANIFESTIMAGE}:${SEMVER} ${MANIFESTIMAGE}:amd64-${SEMVER} ${MANIFESTIMAGE}:arm64v8-${SEMVER}
+                  fi
+                done
+              '''
         }
       }
     }
     // If this is a public release tag it in the LS Github
     stage('Github-Tag-Push-Release') {
       when {
-        branch 'master'
+        branch "master"
         expression {
           env.LS_RELEASE != env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
         }
@@ -605,32 +672,32 @@ pipeline {
       steps {
         echo "Pushing New tag for current commit ${META_TAG}"
         sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/git/tags \
-          -d '{"tag":"'${META_TAG}'",\
-          "object": "'${COMMIT_SHA}'",\
-          "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}' to master",\
-          "type": "commit",\
-          "tagger": {"name": "annie444","email": "annie.ehler.4@gmail.com","date": "'${GITHUB_DATE}'"}}' '''
-        echo 'Pushing New release for Tag'
+        -d '{"tag":"'${META_TAG}'",\
+             "object": "'${COMMIT_SHA}'",\
+             "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}' to master",\
+             "type": "commit",\
+             "tagger": {"name": "${LS_USER}","email": "ci@jpeg.gay","date": "'${GITHUB_DATE}'"}}' '''
+        echo "Pushing New release for Tag"
         sh '''#! /bin/bash
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
-          echo '{"tag_name":"'${META_TAG}'",\
-            "target_commitish": "master",\
-            "name": "'${META_TAG}'",\
-            "body": "**CI Report:**\\n\\n'${CI_URL:-N/A}'\\n\\n**LinuxServer Changes:**\\n\\n'${LS_RELEASE_NOTES}'\\n\\n**'${EXT_REPO}' Changes:**\\n\\n' > start
-          printf '","draft": false,"prerelease": false}' >> releasebody.json
-          paste -d'\\0' start releasebody.json > releasebody.json.done
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/releases -d @releasebody.json.done'''
+              echo "Updating base packages to ${PACKAGE_TAG}" > releasebody.json
+              echo '{"tag_name":"'${META_TAG}'",\
+                     "target_commitish": "master",\
+                     "name": "'${META_TAG}'",\
+                     "body": "**CI Report:**\\n\\n'${CI_URL:-N/A}'\\n\\n**LinuxServer Changes:**\\n\\n'${LS_RELEASE_NOTES}'\\n\\n**OS Changes:**\\n\\n' > start
+              printf '","draft": false,"prerelease": false}' >> releasebody.json
+              paste -d'\\0' start releasebody.json > releasebody.json.done
+              curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/releases -d @releasebody.json.done'''
       }
     }
     // Add protection to the release branch
     stage('Github-Release-Branch-Protection') {
       when {
-        branch 'master'
+        branch "master"
         environment name: 'CHANGE_ID', value: ''
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        echo 'Setting up protection for release branch master'
+        echo "Setting up protection for release branch master"
         sh '''#! /bin/bash
           curl -H "Authorization: token ${GITHUB_TOKEN}" -X PUT https://api.github.com/repos/${LS_USER}/${LS_REPO}/branches/master/protection \
           -d $(jq -c .  << EOF
@@ -653,123 +720,127 @@ pipeline {
               "allow_fork_syncing": false,
               "required_signatures": false
             }
-          EOF
+EOF
           ) '''
       }
     }
     // If this is a Pull request send the CI link as a comment on it
     stage('Pull Request Comment') {
       when {
-        not { environment name: 'CHANGE_ID', value: '' }
+        not {environment name: 'CHANGE_ID', value: ''}
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
         sh '''#! /bin/bash
-          # Function to retrieve JSON data from URL
-          get_json() {
-            local url="$1"
-            local response=$(curl -s "$url")
-            if [ $? -ne 0 ]; then
-              echo "Failed to retrieve JSON data from $url"
-              return 1
-            fi
-            local json=$(echo "$response" | jq .)
-            if [ $? -ne 0 ]; then
-              echo "Failed to parse JSON data from $url"
-              return 1
-            fi
-            echo "$json"
-          }
-
-          build_table() {
-            local data="$1"
-
-            # Get the keys in the JSON data
-            local keys=$(echo "$data" | jq -r 'to_entries | map(.key) | .[]')
-
-            # Check if keys are empty
-            if [ -z "$keys" ]; then
-              echo "JSON report data does not contain any keys or the report does not exist."
-              return 1
-            fi
-
-            # Build table header
-            local header="| Tag | Passed |\\n| --- | --- |\\n"
-
-            # Loop through the JSON data to build the table rows
-            local rows=""
-            for build in $keys; do
-              local status=$(echo "$data" | jq -r ".[\\"$build\\"].test_success")
-              if [ "$status" = "true" ]; then
-                status="✅"
-              else
-                status="❌"
+            # Function to retrieve JSON data from URL
+            get_json() {
+              local url="$1"
+              local response=$(curl -s "$url")
+              if [ $? -ne 0 ]; then
+                echo "Failed to retrieve JSON data from $url"
+                return 1
               fi
-              local row="| "$build" | "$status" |\\n"
-              rows="${rows}${row}"
-            done
+              local json=$(echo "$response" | jq .)
+              if [ $? -ne 0 ]; then
+                echo "Failed to parse JSON data from $url"
+                return 1
+              fi
+              echo "$json"
+            }
 
-            local table="${header}${rows}"
-            local escaped_table=$(echo "$table" | sed 's/\"/\\\\"/g')
-            echo "$escaped_table"
-          }
+            build_table() {
+              local data="$1"
 
-          if [[ "${CI}" = "true" ]]; then
-            # Retrieve JSON data from URL
-            data=$(get_json "$CI_JSON_URL")
-            # Create table from JSON data
-            table=$(build_table "$data")
-            echo -e "$table"
+              # Get the keys in the JSON data
+              local keys=$(echo "$data" | jq -r 'to_entries | map(.key) | .[]')
 
-            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$LS_USER/$LS_REPO/issues/$PULL_REQUEST/comments" \
-              -d "{\\"body\\": \\"I am a bot, here are the test results for this PR: \\n${CI_URL}\\n${SHELLCHECK_URL}\\n${table}\\"}"
-          else
-            curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$LS_USER/$LS_REPO/issues/$PULL_REQUEST/comments" \
-              -d "{\\"body\\": \\"I am a bot, here is the pushed image/manifest for this PR: \\n\\n\\`${GITHUBIMAGE}:${META_TAG}\\`\\"}"
-          fi
-        '''
+              # Check if keys are empty
+              if [ -z "$keys" ]; then
+                echo "JSON report data does not contain any keys or the report does not exist."
+                return 1
+              fi
+
+              # Build table header
+              local header="| Tag | Passed |\\n| --- | --- |\\n"
+
+              # Loop through the JSON data to build the table rows
+              local rows=""
+              for build in $keys; do
+                local status=$(echo "$data" | jq -r ".[\\"$build\\"].test_success")
+                if [ "$status" = "true" ]; then
+                  status="✅"
+                else
+                  status="❌"
+                fi
+                local row="| "$build" | "$status" |\\n"
+                rows="${rows}${row}"
+              done
+
+              local table="${header}${rows}"
+              local escaped_table=$(echo "$table" | sed 's/\"/\\\\"/g')
+              echo "$escaped_table"
+            }
+
+            if [[ "${CI}" = "true" ]]; then
+              # Retrieve JSON data from URL
+              data=$(get_json "$CI_JSON_URL")
+              # Create table from JSON data
+              table=$(build_table "$data")
+              echo -e "$table"
+
+              curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/$LS_USER/$LS_REPO/issues/$PULL_REQUEST/comments" \
+                -d "{\\"body\\": \\"I am a bot, here are the test results for this PR: \\n${CI_URL}\\n${SHELLCHECK_URL}\\n${table}\\"}"
+            else
+              curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/$LS_USER/$LS_REPO/issues/$PULL_REQUEST/comments" \
+                -d "{\\"body\\": \\"I am a bot, here is the pushed image/manifest for this PR: \\n\\n\\`${GITHUBIMAGE}:${META_TAG}\\`\\"}"
+            fi
+            '''
+
       }
     }
   }
+  /* ######################
+     Send status to Discord
+     ###################### */
   post {
     always {
       sh '''#!/bin/bash
-        rm -rf /config/.ssh/id_sign
-        rm -rf /config/.ssh/id_sign.pub
-        git config --global --unset gpg.format
-        git config --global --unset user.signingkey
-        git config --global --unset commit.gpgsign
-      '''
+            rm -rf /config/.ssh/id_sign
+            rm -rf /config/.ssh/id_sign.pub
+            git config --global --unset gpg.format
+            git config --global --unset user.signingkey
+            git config --global --unset commit.gpgsign
+        '''
     }
     cleanup {
       sh '''#! /bin/bash
-        echo "Performing docker system prune!!"
-        containers=$(docker ps -aq)
-        if [[ -n "${containers}" ]]; then
-          docker stop ${containers}
-        fi
-        docker system prune -af --volumes || :
-      '''
+            echo "Performing docker system prune!!"
+            containers=$(docker ps -aq)
+            if [[ -n "${containers}" ]]; then
+              docker stop ${containers}
+            fi
+            docker system prune -af --volumes || :
+         '''
       cleanWs()
     }
   }
 }
 
-def retryBackoff(int maxAttempts, int powerBase, Closure c) {
+def retry_backoff(int max_attempts, int power_base, Closure c) {
   int n = 0
-  while (n < maxAttempts) {
+  while (n < max_attempts) {
     try {
       c()
       return
     } catch (err) {
-      if ((n + 1) >= maxAttempts) {
+      if ((n + 1) >= max_attempts) {
         throw err
       }
-      sleep(powerBase ** n)
+      sleep(power_base ** n)
       n++
     }
   }
