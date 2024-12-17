@@ -52,7 +52,6 @@ RUN curl -o \
     chmod +x /tmp/orca.app && \
     ./orca.app --appimage-extract && \
     mv squashfs-root /opt/orcaslicer && \
-    echo "**** cleanup ****" && \
     apt-get autoclean && \
     rm -rf \
       /config/.cache \
@@ -61,15 +60,27 @@ RUN curl -o \
       /var/tmp/* \
       /tmp/*
 
-RUN echo "/usr/bin/desktop_ready && /opt/orcaslicer/AppRun &" > $STARTUPDIR/custom_startup.sh && \
-    chmod +x $STARTUPDIR/custom_startup.sh
+COPY root/custom_startup.sh $STARTUPDIR/custom_startup.sh
+RUN chmod +x $STARTUPDIR/custom_startup.sh
+RUN chmod 755 $STARTUPDIR/custom_startup.sh
+
+RUN cp $HOME/.config/xfce4/xfconf/single-application-xfce-perchannel-xml/* $HOME/.config/xfce4/xfconf/xfce-perchannel-xml/
+RUN cp /usr/share/backgrounds/bg_kasm.png /usr/share/backgrounds/bg_default.png
+RUN apt-get remove -y xfce4-panel
 
 # add local files
-COPY /root /
-COPY /OrcaSlicer $HOME/.config/OrcaSlicer
+COPY OrcaSlicer/ $HOME/.config/OrcaSlicer/
 
-RUN chown 1000:0 $HOME
+RUN chown -R 1000:0 $HOME
 RUN $STARTUPDIR/set_user_permission.sh $HOME
+RUN find /usr/share/ -name "icon-theme.cache" -exec rm -f {} \; && \
+    if [ -z ${SKIP_CLEAN+x} ]; then \
+      apt-get autoclean; \
+      rm -rf \
+        /var/lib/apt/lists/* \
+        /var/tmp/* \
+        /tmp/*; \
+    fi
 
 ENV HOME /home/kasm-user
 WORKDIR $HOME
