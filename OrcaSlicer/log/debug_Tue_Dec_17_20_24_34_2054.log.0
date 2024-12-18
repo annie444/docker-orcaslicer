@@ -1,0 +1,14 @@
+[warning]	2024-12-17 20:24:38.953808[Thread 0x00007f5c1bedd480]:Failed to load to hints.cereal. File does not exists. /home/kasm-user/.config/OrcaSlicer/user/hints.cereal
+[error]	2024-12-17 20:24:40.400989[Thread 0x00007f5c1bedd480]:calc_exclude_triangles:Unable to create exclude triangles
+[warning]	2024-12-17 20:24:40.597924[Thread 0x00007f5c1bedd480]:08:24:40 PM: Warning: Error running JavaScript: Unsupported result type
+[warning]	2024-12-17 20:24:40.600573[Thread 0x00007f5c1bedd480]:08:24:40 PM: Warning: Error running JavaScript: Unsupported result type
+[warning]	2024-12-17 20:24:40.601816[Thread 0x00007f5c1bedd480]:08:24:40 PM: Warning: Error running JavaScript: Unsupported result type
+[warning]	2024-12-17 20:24:40.640199[Thread 0x00007f5c1bedd480]:08:24:40 PM: Warning: Error running JavaScript: Unsupported result type
+[error]	2024-12-17 20:24:42.206821[Thread 0x00007f5c1bedd480]:calc_exclude_triangles:Unable to create exclude triangles
+[error]	2024-12-17 20:24:42.346459[Thread 0x00007f5c1bedd480]:LoadProfileFamily: parse /opt/orcaslicer/resources/profiles/Creality.json got exception: [json.exception.type_error.302] type must be string, but is null
+[error]	2024-12-17 20:24:42.358941[Thread 0x00007f5c1bedd480]:LoadProfileFamily: parse /opt/orcaslicer/resources/profiles/Elegoo.json got exception: [json.exception.type_error.302] type must be string, but is null
+[error]	2024-12-17 20:24:42.394414[Thread 0x00007f5c1bedd480]:LoadProfileFamily: parse /opt/orcaslicer/resources/profiles/Kingroon.json got exception: [json.exception.type_error.302] type must be string, but is null
+[warning]	2024-12-17 20:24:42.670705[Thread 0x00007f5c1bedd480]:08:24:42 PM: Warning: Error running JavaScript: Unsupported result type
+[error]	2024-12-17 20:25:24.801548[Thread 0x00007f5c1bedd480]:calc_exclude_triangles:Unable to create exclude triangles
+[warning]	2024-12-17 20:25:24.807026[Thread 0x00007f5c1bedd480]:get_version, get_version not supported,return 00.00.00.00!
+[error]	2024-12-17 20:26:11.320233[Thread 0x00007f5c1bedd480]:calc_exclude_triangles:Unable to create exclude triangles

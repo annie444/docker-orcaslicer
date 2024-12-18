@@ -1,8 +1,11 @@
 {
+    "bridge_no_support": "1",
     "brim_type": "auto_brim",
-    "detect_thin_wall": "1",
+    "detect_overhang_wall": "0",
+    "enable_overhang_speed": "0",
     "enable_support": "1",
     "from": "User",
+    "independent_support_layer_height": "0",
     "inherits": "0.12mm Fine @Flashforge AD5M Pro 0.4 Nozzle",
     "is_custom_defined": "0",
     "name": "0.12mm Fine w Support @Flashforge AD5M Pro 0.4 Nozzle",

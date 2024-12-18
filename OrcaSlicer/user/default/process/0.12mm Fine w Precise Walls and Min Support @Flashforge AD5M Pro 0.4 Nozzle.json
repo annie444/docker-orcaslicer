@@ -1,13 +1,20 @@
 {
+    "bridge_no_support": "1",
+    "detect_overhang_wall": "0",
+    "enable_overhang_speed": "0",
     "enable_support": "1",
     "from": "User",
+    "independent_support_layer_height": "0",
     "inherits": "0.12mm Fine @Flashforge AD5M Pro 0.4 Nozzle",
     "is_custom_defined": "0",
     "name": "0.12mm Fine w Precise Walls and Min Support @Flashforge AD5M Pro 0.4 Nozzle",
     "precise_outer_wall": "1",
-    "precise_z_height": "1",
     "print_settings_id": "0.12mm Fine w Precise Walls and Min Support @Flashforge AD5M Pro 0.4 Nozzle",
-    "support_threshold_angle": "20",
+    "sparse_infill_pattern": "adaptivecubic",
+    "support_critical_regions_only": "1",
+    "support_on_build_plate_only": "1",
+    "support_threshold_angle": "10",
     "support_type": "tree(auto)",
-    "version": "2.2.0.4"
+    "version": "2.2.0.4",
+    "wall_loops": "3"
 }

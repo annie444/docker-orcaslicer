@@ -1,12 +1,11 @@
 {
+    "fan_speedup_overhangs": "0",
     "from": "User",
     "inherits": "Flashforge Adventurer 5M Pro 0.4 Nozzle",
     "is_custom_defined": "0",
     "machine_end_gcode": "END_PRINT",
     "machine_start_gcode": "START_PRINT BED_TEMP={first_layer_bed_temperature[0]} EXTRUDER_TEMP={first_layer_temperature[0]}",
     "name": "Klipper Adventurer 5M Pro 0.4 Nozzle",
-    "print_host": "martianmanor.ddns.net:7125",
-    "print_host_webui": "martianmanor.ddns.net:4001",
     "printable_area": [
         "-105x-105",
         "110x-105",
@@ -14,6 +13,5 @@
         "-105x110"
     ],
     "printer_settings_id": "Klipper Adventurer 5M Pro 0.4 Nozzle",
-    "time_lapse_gcode": "TIMELAPSE_TAKE_FRAME",
     "version": "2.2.0.4"
 }
