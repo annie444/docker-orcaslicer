@@ -1,4 +1,4 @@
-FROM kasmweb/core-ubuntu-focal:1.16.1
+FROM kasmweb/core-ubuntu-noble:1.16.1-rolling-weekly
 USER root
 
 ARG BUILD_DATE
