@@ -45,6 +45,7 @@ RUN curl -o \
       | awk '/tag_name/{print $4;exit}' FS='[""]'); \
     fi && \
     ORCASLICER_UPPER_VERSION=$(echo ${ORCASLICER_VERSION} | sed 's/\b\(.\)/\u\1/g') && \
+    mkdir -p /opt/orcaslicer && \
     cd /tmp && \
     curl -o \
       /tmp/orca.app -L \
