@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -ex
-START_COMMAND="/opt/orca.app"
+START_COMMAND="/opt/orcaslicer/AppRun"
 PGREP="orca"
 export MAXIMIZE="true"
 export MAXIMIZE_NAME="Untitled"

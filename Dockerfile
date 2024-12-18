@@ -35,10 +35,10 @@ RUN curl -o \
       gstreamer1.0-qt5 \
       gstreamer1.0-tools \
       gstreamer1.0-x \
-      libgstreamer1.0 \
-      libgstreamer-plugins-bad1.0 \
-      libgstreamer-plugins-base1.0 \
-      libwebkit2gtk-4.0-37 \
+      libgstreamer1.0-0 \
+      gstreamer1.0-plugins-bad \
+      gstreamer1.0-plugins-base \
+      libwebkit2gtk-4.1-0 \
       libwx-perl && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
       ORCASLICER_VERSION=$(curl -sX GET "https://api.github.com/repos/SoftFever/OrcaSlicer/releases/latest" \
@@ -47,9 +47,11 @@ RUN curl -o \
     ORCASLICER_UPPER_VERSION=$(echo ${ORCASLICER_VERSION} | sed 's/\b\(.\)/\u\1/g') && \
     cd /tmp && \
     curl -o \
-      /opt/orca.app -L \
+      /tmp/orca.app -L \
       "https://github.com/SoftFever/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_Ubuntu2404_${ORCASLICER_UPPER_VERSION}.AppImage" && \
-    chmod +x /opt/orca.app && \
+    chmod +x /tmp/orca.app && \
+    ./orca.app --appimage-extract && \
+    mv /tmp/squashfs-root /opt/orcaslicer && \
     apt-get autoclean && \
     rm -rf \
       /config/.cache \
