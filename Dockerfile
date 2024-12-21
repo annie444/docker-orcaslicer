@@ -21,7 +21,7 @@ RUN curl -o \
       https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png && \
     DEBIAN_FRONTEND=noninteractive \
     add-apt-repository ppa:kisak/kisak-mesa && \
-    apt-get update -y && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
       firefox \
       gstreamer1.0-alsa \
@@ -40,7 +40,14 @@ RUN curl -o \
       gstreamer1.0-plugins-bad \
       gstreamer1.0-plugins-base \
       libwebkit2gtk-4.1-0 \
-      libwx-perl && \
+      libwx-perl \
+      libnvidia-egl-gbm1 \
+      glgrib-egl \
+      libgegl-common \
+      libglgrib-egl0 \
+      libnvidia-gl-550 \
+      libnvidia-gl-550-server && \
+    apt-get update && \
     apt-get upgrade -y && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
       ORCASLICER_VERSION=$(curl -sX GET "https://api.github.com/repos/SoftFever/OrcaSlicer/releases/latest" \
