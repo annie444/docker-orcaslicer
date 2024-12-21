@@ -19,6 +19,7 @@ ENV TITLE=OrcaSlicer \
 RUN curl -o \
       /usr/share/backgrounds/bg_default.png \
       https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png && \
+    add-apt-repository ppa:kisak/kisak-mesa && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install --no-install-recommends -y \
@@ -40,6 +41,7 @@ RUN curl -o \
       gstreamer1.0-plugins-base \
       libwebkit2gtk-4.1-0 \
       libwx-perl && \
+    apt-get upgrade && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
       ORCASLICER_VERSION=$(curl -sX GET "https://api.github.com/repos/SoftFever/OrcaSlicer/releases/latest" \
       | awk '/tag_name/{print $4;exit}' FS='[""]'); \
