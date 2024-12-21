@@ -13,15 +13,15 @@ ENV INST_SCRIPTS $STARTUPDIR/install
 WORKDIR $HOME
 
 # title
-ENV TITLE=OrcaSlicer \
-    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV TITLEOrcaSlicer \
+    SSL_CERT_FILE /etc/ssl/certs/ca-certificates.crt
 
 RUN curl -o \
       /usr/share/backgrounds/bg_default.png \
       https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png && \
-    add-apt-repository ppa:kisak/kisak-mesa && \
-    apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
+    add-apt-repository ppa:kisak/kisak-mesa && \
+    apt-get update -y && \
     apt-get install --no-install-recommends -y \
       firefox \
       gstreamer1.0-alsa \
@@ -41,7 +41,7 @@ RUN curl -o \
       gstreamer1.0-plugins-base \
       libwebkit2gtk-4.1-0 \
       libwx-perl && \
-    apt-get upgrade && \
+    apt-get upgrade -y && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
       ORCASLICER_VERSION=$(curl -sX GET "https://api.github.com/repos/SoftFever/OrcaSlicer/releases/latest" \
       | awk '/tag_name/{print $4;exit}' FS='[""]'); \
