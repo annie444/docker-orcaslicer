@@ -20,7 +20,6 @@ RUN curl -o \
       /usr/share/backgrounds/bg_default.png \
       https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png && \
     DEBIAN_FRONTEND=noninteractive \
-    add-apt-repository ppa:kisak/kisak-mesa && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
       firefox \
