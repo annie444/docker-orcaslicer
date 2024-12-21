@@ -44,9 +44,7 @@ RUN curl -o \
       libnvidia-egl-gbm1 \
       glgrib-egl \
       libgegl-common \
-      libglgrib-egl0 \
-      libnvidia-gl-550 \
-      libnvidia-gl-550-server && \
+      libglgrib-egl0 && \
     apt-get update && \
     apt-get upgrade -y && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
