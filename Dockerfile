@@ -40,11 +40,7 @@ RUN curl -o \
       gstreamer1.0-plugins-bad \
       gstreamer1.0-plugins-base \
       libwebkit2gtk-4.1-0 \
-      libwx-perl \
-      libnvidia-egl-gbm1 \
-      glgrib-egl \
-      libgegl-common \
-      libglgrib-egl0 && \
+      libwx-perl && \
     apt-get update && \
     apt-get upgrade -y && \
     if [ -z ${ORCASLICER_VERSION+x} ]; then \
